@@ -30,7 +30,26 @@ class AppState {
 
 class WordFriendsApp {  
     constructor() {  
-        this.state = new AppState();  
+        this.state = new AppState();
+        this.state = {  
+            currentWord: '',  
+            score: 0,  
+            totalAttempts: 0,  
+            totalWords: 0,  
+            correctWords: 0,  
+            streak: 0,  
+            bestStreak: 0,
+            isRecording: false,  
+ 
+        }; 
+        // Speech Recognition 초기화  
+        this.recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();  
+        this.recognition.lang = 'en-US';  
+        this.recognition.continuous = false;  
+        this.recognition.interimResults = false;  
+        
+        // Speech Recognition 이벤트 핸들러 설정  
+        this.setupSpeechRecognition();  
         this.initialize();  
     }  
 
@@ -81,12 +100,17 @@ class WordFriendsApp {
     
             this.updateScore();  
             this.setupEventListeners();  
-            this.updateUI();  
+            this.updateUI();
     
             // 초기화가 완료되었다면 단어 카드 표시  
             if (this.state.isInitialized) {  
                 this.getNewWord();  
-            }  
+            }
+            // 첫 단어 카드 생성  
+            if (this.state.currentWord) {  
+                this.createOrUpdateWordCard(this.state.currentWord);  
+            }
+            this.updateStatistics(); // 초기 통계 표시 
         } catch (error) {  
             console.error('초기화 중 오류 발생:', error);  
             this.showError('앱 초기화 중 오류가 발생했습니다.');  
@@ -234,31 +258,161 @@ class WordFriendsApp {
         $('#feedback-message').removeClass('success error').text('');  
     }  
 
-    createOrUpdateWordCard(word) {  
-        const $container = $('#word-cards-container');  
-        $container.empty();  
+    // createOrUpdateWordCard(word) {  
+    //     const $container = $('#word-cards-container');  
+    //     $container.empty();  
 
+    //     const cardHtml = `  
+    //         <div class="word-card bg-white rounded-lg shadow-md p-6 text-center">  
+    //             <h3 class="text-2xl font-bold mb-4">${word}</h3>  
+    //             <div class="flex justify-center space-x-4">  
+    //                 <button class="play-btn px-4 py-2 bg-blue-500 text-white rounded-lg">  
+    //                     <i class="fas fa-play"></i> Play  
+    //                 </button>  
+    //                 <button class="mic-btn px-4 py-2 bg-red-500 text-white rounded-lg">  
+    //                     <i class="fas fa-microphone"></i> Record  
+    //                 </button>  
+    //             </div>  
+    //             <div class="result-container mt-4"></div>  
+    //         </div>  
+    //     `;  
+
+    //     $container.html(cardHtml);  
+        
+    //     // 버튼 이벤트 리스너 추가  
+    //     const $card = $container.find('.word-card');  
+    //     $card.find('.play-btn').on('click', () => this.playWord());  
+    //     $card.find('.mic-btn').on('click', () => this.toggleRecording($card[0]));  
+    // }  
+
+
+
+    createOrUpdateWordCard(word) {  
+        // 기존 카드 제거  
+        $('#word-card').remove();  
+    
         const cardHtml = `  
-            <div class="word-card bg-white rounded-lg shadow-md p-6 text-center">  
-                <h3 class="text-2xl font-bold mb-4">${word}</h3>  
-                <div class="flex justify-center space-x-4">  
-                    <button class="play-btn px-4 py-2 bg-blue-500 text-white rounded-lg">  
-                        <i class="fas fa-play"></i> Play  
+            <div id="word-card" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 max-w-md mx-auto">  
+                <div class="text-4xl font-bold mb-6 text-purple-600 text-center">${word}</div>  
+                <div class="flex flex-col gap-4">  
+                    <button id="play-btn" class="play-btn group px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
+                        <i class="fas fa-play mr-2"></i>  
+                        <span class="group-hover:tracking-wider transition-all duration-200">Play</span>  
                     </button>  
-                    <button class="mic-btn px-4 py-2 bg-red-500 text-white rounded-lg">  
-                        <i class="fas fa-microphone"></i> Record  
+                    <button id="mic-btn" class="mic-btn group px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
+                        <i class="fas fa-microphone mr-2"></i>  
+                        <span class="group-hover:tracking-wider transition-all duration-200">Record</span>  
                     </button>  
                 </div>  
-                <div class="result-container mt-4"></div>  
-            </div>  
-        `;  
-
-        $container.html(cardHtml);  
-        
+                <div id="result-container" class="mt-6 text-center"></div>  
+            </div>`;  
+    
+        // 카드를 컨테이너에 추가  
+        $('#word-container').html(cardHtml);  
+    
+        // 애니메이션 관련 스타일 추가  
+        if (!$('#card-animation-style').length) {  
+            $('head').append(`  
+                <style id="card-animation-style">  
+                    .word-card {  
+                        opacity: 0;  
+                        animation: slideIn 0.5s ease forwards;  
+                    }  
+                    
+                    @keyframes slideIn {  
+                        from {  
+                            opacity: 0;  
+                            transform: translateY(20px);  
+                        }  
+                        to {  
+                            opacity: 1;  
+                            transform: translateY(0);  
+                        }  
+                    }  
+                    
+                    .play-btn:active, .mic-btn:active {  
+                        transform: scale(0.95);  
+                    }  
+                    
+                    .result-success {  
+                        animation: popIn 0.5s ease;  
+                        color: #10B981;  
+                    }  
+                    
+                    .result-error {  
+                        animation: shake 0.5s ease;  
+                        color: #EF4444;  
+                    }  
+                    
+                    @keyframes popIn {  
+                        0% { transform: scale(0.8); opacity: 0; }  
+                        100% { transform: scale(1); opacity: 1; }  
+                    }  
+                    
+                    @keyframes shake {  
+                        0%, 100% { transform: translateX(0); }  
+                        25% { transform: translateX(-5px); }  
+                        75% { transform: translateX(5px); }  
+                    }  
+                </style>  
+            `);  
+        }  
+    
         // 버튼 이벤트 리스너 추가  
-        const $card = $container.find('.word-card');  
-        $card.find('.play-btn').on('click', () => this.playWord());  
-        $card.find('.mic-btn').on('click', () => this.toggleRecording($card[0]));  
+        this.setupButtonListeners();  
+    }  
+    
+    // 버튼 이벤트 리스너 설정을 위한 새로운 메서드  
+    setupButtonListeners() {  
+        const playBtn = $('#play-btn');  
+        const micBtn = $('#mic-btn');  
+
+        // 버튼 호버 효과  
+        [playBtn, micBtn].forEach(btn => {  
+            btn.on('mouseenter', function() {  
+                $(this).find('i').addClass('animate-bounce');  
+            }).on('mouseleave', function() {  
+                $(this).find('i').removeClass('animate-bounce');  
+            });  
+        });  
+
+        // 기존의 클릭 이벤트 리스너들  
+        playBtn.on('click', () => {  
+            this.playWord();  
+            playBtn.addClass('scale-95');  
+            setTimeout(() => playBtn.removeClass('scale-95'), 200);  
+        });  
+
+        micBtn.on('click', () => {  
+            this.startRecording();  
+            micBtn.addClass('scale-95');  
+            setTimeout(() => micBtn.removeClass('scale-95'), 200);  
+        });  
+    }  
+
+    // 새 단어를 가져오는 메서드  
+    async getNewWord() {  
+        try {  
+            // API 호출 등의 로직...  
+            
+            // 새 단어로 카드 업데이트  
+            this.createOrUpdateWordCard(this.state.currentWord);  
+        } catch (error) {  
+            console.error('Error getting new word:', error);  
+        }  
+    }  
+    
+    // 결과 표시 메서드 수정  
+    showResult(message, isSuccess = true) {  
+        const resultContainer = $('#result-container');  
+        resultContainer.html(message);  
+        resultContainer.removeClass('result-success result-error');  
+        resultContainer.addClass(isSuccess ? 'result-success' : 'result-error');  
+        
+        // 결과 표시 애니메이션  
+        resultContainer.css('animation', 'none');  
+        resultContainer[0].offsetHeight; // reflow  
+        resultContainer.css('animation', isSuccess ? 'popIn 0.5s ease' : 'shake 0.5s ease');  
     }  
 
     async playWord() {  
@@ -356,6 +510,102 @@ class WordFriendsApp {
     updateScore() {  
         $('#score').text(this.state.score);  
         $('#total-attempts').text(this.state.totalAttempts);  
+    }
+    // 통계 업데이트 메서드  
+    updateStatistics() {  
+        const accuracy = this.state.totalWords === 0 ? 0 :   
+            Math.round((this.state.correctWords / this.state.totalWords) * 100);  
+        
+        $('#accuracy').text(`${accuracy}%`);  
+        $('#total-words').text(this.state.totalWords);  
+        $('#current-streak').text(this.state.streak);  
+        $('#best-streak').text(this.state.bestStreak);  
+
+        // 통계 카드 업데이트 애니메이션  
+        $('.stat-card').addClass('animate-pulse');  
+        setTimeout(() => {  
+            $('.stat-card').removeClass('animate-pulse');  
+        }, 500);  
+    }  
+
+    // 로딩 상태 표시 메서드  
+    showLoading() {  
+        const loadingHtml = `  
+            <div class="loading-spinner fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">  
+                <div class="bg-white rounded-lg p-6 flex flex-col items-center">  
+                    <div class="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>  
+                    <div class="mt-4 text-gray-700">Loading...</div>  
+                </div>  
+            </div>`;  
+        $('body').append(loadingHtml);  
+    }  
+
+    hideLoading() {  
+        $('.loading-spinner').remove();  
+    }  
+
+    // Speech Recognition 설정  
+    setupSpeechRecognition() {  
+        this.recognition.onstart = () => {  
+            this.state.isRecording = true;  
+            $('#mic-btn').addClass('recording');  
+            this.showResult('듣고 있습니다...', true);  
+        };  
+
+        this.recognition.onend = () => {  
+            this.state.isRecording = false;  
+            $('#mic-btn').removeClass('recording');  
+        };  
+
+        this.recognition.onresult = (event) => {  
+            const result = event.results[0][0].transcript;  
+            this.handleSpeechResult(result);  
+        };  
+
+        this.recognition.onerror = (event) => {  
+            console.error('Speech recognition error:', event.error);  
+            this.showResult('음성 인식 오류가 발생했습니다.', false);  
+            this.state.isRecording = false;  
+            $('#mic-btn').removeClass('recording');  
+        };  
+    }  
+
+    // 녹음 시작  
+    startRecording() {  
+        if (!this.state.isRecording) {  
+            this.recognition.start();  
+        }  
+    }  
+
+    // 음성 인식 결과 처리  
+    handleSpeechResult(result) {  
+        const userAnswer = result.toLowerCase().trim();  
+        const isCorrect = this.checkAnswer(userAnswer);  
+        
+        if (isCorrect) {  
+            this.showResult('정답입니다! 🎉', true);  
+            // 잠시 후 새로운 단어 가져오기  
+            setTimeout(() => this.getNewWord(), 1500);  
+        } else {  
+            this.showResult('다시 시도해보세요 😅', false);  
+        }  
+    }  
+
+    // 정답 체크  
+    checkAnswer(userAnswer) {  
+        const isCorrect = userAnswer === this.state.currentWord.toLowerCase();  
+        
+        this.state.totalWords++;  
+        if (isCorrect) {  
+            this.state.correctWords++;  
+            this.state.streak++;  
+            this.state.bestStreak = Math.max(this.state.streak, this.state.bestStreak);  
+        } else {  
+            this.state.streak = 0;  
+        }  
+        
+        this.updateStatistics();  
+        return isCorrect;  
     }  
 }  
 
@@ -408,6 +658,82 @@ $('head').append(`
 
         #feedback-message:not(:empty) {  
             animation: fadeIn 0.3s ease-out;  
+        }
+
+        .word-card {  
+            opacity: 0;  
+            animation: slideIn 0.5s ease forwards;  
+        }  
+        
+        @keyframes slideIn {  
+            from {  
+                opacity: 0;  
+                transform: translateY(20px);  
+            }  
+            to {  
+                opacity: 1;  
+                transform: translateY(0);  
+            }  
+        }  
+        
+        .result-success {  
+            animation: popIn 0.5s ease;  
+            color: #10B981;  
+        }  
+        
+        .result-error {  
+            animation: shake 0.5s ease;  
+            color: #EF4444;  
+        }  
+        
+        @keyframes popIn {  
+            0% { transform: scale(0.8); opacity: 0; }  
+            100% { transform: scale(1); opacity: 1; }  
+        }  
+        
+        @keyframes shake {  
+            0%, 100% { transform: translateX(0); }  
+            25% { transform: translateX(-5px); }  
+            75% { transform: translateX(5px); }  
+        }
+            .stat-card {  
+            transition: all 0.3s ease;  
+        }  
+        
+        .stat-card:hover {  
+            transform: translateY(-2px);  
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),   
+                       0 2px 4px -1px rgba(0, 0, 0, 0.06);  
+        }  
+
+        @keyframes pulse {  
+            0%, 100% { transform: scale(1); }  
+            50% { transform: scale(1.05); }  
+        }  
+
+        .animate-pulse {  
+            animation: pulse 0.5s ease;  
+        }
+            #mic-btn.recording {  
+            animation: pulse-red 1.5s infinite;  
+            background-color: #EF4444;  
+        }  
+
+        @keyframes pulse-red {  
+            0% {  
+                transform: scale(1);  
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);  
+            }  
+            
+            70% {  
+                transform: scale(1.05);  
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);  
+            }  
+            
+            100% {  
+                transform: scale(1);  
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);  
+            }  
         }  
     </style>  
 `);

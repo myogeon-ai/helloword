@@ -9,6 +9,13 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>  
     <!-- Font Awesome 아이콘 추가 -->  
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">  
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">  
+    <!-- jQuery -->  
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>  
+    <!-- Font Awesome -->  
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">  
+    <!-- Tailwind CSS -->  
+    <script src="https://cdn.tailwindcss.com"></script>  
 </head>  
 <body class="bg-gray-50">  
     <!-- 메인 컨테이너 -->  
@@ -110,8 +117,17 @@
 
                 <!-- 단어 카드 컨테이너 -->  
                 <div id="word-cards-container" class="grid gap-6 hidden">  
-                    <!-- 단어 카드들이 여기에 동적으로 추가됨 -->  
-                </div>  
+                    <!-- 단어 카드들이 여기에 동적으로 추가됨 -->
+                </div>
+                <!-- HTML 파일 내부 적절한 위치에 -->  
+                    <div id="word-container" class="mt-4"></div>  
+
+
+
+                    
+
+
+
 
                 <!-- 도움말 섹션 -->  
                 <div class="help-section mt-12">  
@@ -139,8 +155,41 @@
                     <div id="selected-gender" class="mb-6 text-gray-700">캐릭터를 선택해주세요</div>  
                     
                     <h3 class="text-xl font-bold mb-4">학습 현황</h3>  
-                    <div id="score-display" class="text-lg text-gray-700">  
+                    <!-- <div id="score-display" class="text-lg text-gray-700">  
                         정확도: <span id="score">0</span>/<span id="total-attempts">0</span>  
+                    </div> -->
+                    <!-- 점수 표시 섹션 위나 아래에 배치 -->  
+                    <div id="score-section" class="mb-4">  
+                        <!-- 기존 점수 표시 -->  
+                        <div>Score: <span id="score">0</span> / <span id="total-attempts">0</span></div>  
+                        
+                        <!-- 프로그레스 바 추가 -->  
+                        <div id="progress-bar" class="w-full bg-gray-200 rounded-full h-2.5 mb-6">  
+                            <div class="progress-fill bg-purple-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <!-- 학습 통계 대시보드 -->  
+                <div id="statistics-container" class="mt-6 bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto">  
+                    <h2 class="text-2xl font-bold mb-4 text-purple-600">학습 통계</h2>  
+                    <div class="grid grid-cols-2 gap-4">  
+                        <div class="stat-card p-4 bg-blue-50 rounded-lg">  
+                            <div class="text-sm text-blue-600">정확도</div>  
+                            <div id="accuracy" class="text-2xl font-bold text-blue-700">0%</div>  
+                        </div>  
+                        <div class="stat-card p-4 bg-green-50 rounded-lg">  
+                            <div class="text-sm text-green-600">학습한 단어</div>  
+                            <div id="total-words" class="text-2xl font-bold text-green-700">0</div>  
+                        </div>  
+                        <div class="stat-card p-4 bg-purple-50 rounded-lg">  
+                            <div class="text-sm text-purple-600">현재 스트릭</div>  
+                            <div id="current-streak" class="text-2xl font-bold text-purple-700">0</div>  
+                        </div>  
+                        <div class="stat-card p-4 bg-yellow-50 rounded-lg">  
+                            <div class="text-sm text-yellow-600">최고 스트릭</div>  
+                            <div id="best-streak" class="text-2xl font-bold text-yellow-700">0</div>  
+                        </div>  
                     </div>  
                 </div>  
             </div>  
