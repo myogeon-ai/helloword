@@ -1,15 +1,4 @@
 class AppState {  
-    // constructor() {  
-    //     this.selectedTopic = '';  
-    //     this.selectedCharacter = '';  
-    //     this.currentWord = '';  
-    //     this.score = 0;  
-    //     this.totalAttempts = 0;  
-    //     this.isRecording = false;  
-    //     this.mediaRecorder = null;  
-    //     this.audioChunks = [];  
-    //     this.isInitialized = false;  
-    // }
     // 카테고리, 캐릭터 디폴트
     constructor() {  
         this.reset();  
@@ -39,7 +28,9 @@ class WordFriendsApp {
             correctWords: 0,  
             streak: 0,  
             bestStreak: 0,
-            isRecording: false,  
+            isRecording: false,
+            isLoggedIn: false,  
+            currentUser: null,
  
         }; 
         // Speech Recognition 초기화  
@@ -49,31 +40,125 @@ class WordFriendsApp {
         this.recognition.interimResults = false;  
         
         // Speech Recognition 이벤트 핸들러 설정  
-        this.setupSpeechRecognition();  
+        this.setupSpeechRecognition();
+        this.setupAuthListeners();  
         this.initialize();  
     }  
 
-    // async initialize() {  
-    //     try {  
-    //         const response = await $.get('/api/check_initialization');  
-    //         if (response.selected_topic) {  
-    //             this.state.selectedTopic = response.selected_topic;  
-    //             $(`.topic-btn[data-topic="${response.selected_topic}"]`).addClass('active');  
-    //             this.updateSelectedTopic(response.selected_topic);  
-    //         }  
-    //         if (response.selected_character) {  
-    //             this.state.selectedCharacter = response.selected_character;  
-    //             $(`.character-btn[data-gender="${response.selected_character}"]`).addClass('active');  
-    //             this.updateSelectedCharacter(response.selected_character);  
-    //         }  
-    //         this.state.isInitialized = response.is_initialized;  
-    //     } catch (error) {  
-    //         console.error('초기화 중 오류 발생:', error);  
-    //     }  
 
-    //     this.setupEventListeners();  
-    //     this.updateUI();  
-    // }
+    setupAuthListeners() {  
+        // 로그인 버튼 클릭  
+        $('#login-btn').on('click', () => {  
+            $('#auth-modal').removeClass('hidden');  
+        });  
+
+        // 모달 닫기  
+        $('#close-modal').on('click', () => {  
+            $('#auth-modal').addClass('hidden');  
+        });  
+
+        // 탭 전환  
+        $('#login-tab').on('click', () => this.switchAuthTab('login'));  
+        $('#register-tab').on('click', () => this.switchAuthTab('register'));  
+
+        // 로그인 폼 제출  
+        $('#login-form').on('submit', async (e) => {  
+            e.preventDefault();  
+            await this.handleLogin();  
+        });  
+
+        // 회원가입 폼 제출  
+        $('#register-form').on('submit', async (e) => {  
+            e.preventDefault();  
+            await this.handleRegister();  
+        });  
+    }  
+
+    switchAuthTab(tab) {  
+        if (tab === 'login') {  
+            $('#login-tab').addClass('border-purple-600 text-purple-600').removeClass('border-gray-200 text-gray-500');  
+            $('#register-tab').removeClass('border-purple-600 text-purple-600').addClass('border-gray-200 text-gray-500');  
+            $('#login-form').removeClass('hidden');  
+            $('#register-form').addClass('hidden');  
+        } else {  
+            $('#register-tab').addClass('border-purple-600 text-purple-600').removeClass('border-gray-200 text-gray-500');  
+            $('#login-tab').removeClass('border-purple-600 text-purple-600').addClass('border-gray-200 text-gray-500');  
+            $('#register-form').removeClass('hidden');  
+            $('#login-form').addClass('hidden');  
+        }  
+    }  
+
+    async handleLogin() {  
+        const id = $('#login-id').val();  
+        const password = $('#login-password').val();  
+
+        this.showLoading();  
+        try {  
+            const response = await fetch('/api/login', {  
+                method: 'POST',  
+                headers: {  
+                    'Content-Type': 'application/json',  
+                },  
+                body: JSON.stringify({ id, password })  
+            });  
+
+            const data = await response.json();  
+            if (data.success) {  
+                this.state.isLoggedIn = true;  
+                this.state.currentUser = data.user;  
+                $('#auth-modal').addClass('hidden');  
+                this.updateLoginButton();  
+                this.showResult('로그인 성공!', true);  
+            } else {  
+                this.showResult('로그인 실패: ' + data.message, false);  
+            }  
+        } catch (error) {  
+            console.error('Login error:', error);  
+            this.showResult('로그인 중 오류가 발생했습니다.', false);  
+        } finally {  
+            this.hideLoading();  
+        }  
+    }  
+
+    async handleRegister() {  
+        const id = $('#register-id').val();  
+        const password = $('#register-password').val();  
+        const nickname = $('#register-nickname').val();  
+
+        this.showLoading();  
+        try {  
+            const response = await fetch('/api/register', {  
+                method: 'POST',  
+                headers: {  
+                    'Content-Type': 'application/json',  
+                },  
+                body: JSON.stringify({ id, password, nickname })  
+            });  
+
+            const data = await response.json();  
+            if (data.success) {  
+                this.switchAuthTab('login');  
+                this.showResult('회원가입 성공! 로그인해주세요.', true);  
+            } else {  
+                this.showResult('회원가입 실패: ' + data.message, false);  
+            }  
+        } catch (error) {  
+            console.error('Register error:', error);  
+            this.showResult('회원가입 중 오류가 발생했습니다.', false);  
+        } finally {  
+            this.hideLoading();  
+        }  
+    }  
+
+    updateLoginButton() {  
+        if (this.state.isLoggedIn) {  
+            $('#login-btn').text(this.state.currentUser.nickname);  
+        } else {  
+            $('#login-btn').text('로그인');  
+        }  
+    }  
+
+
 
 
     async initialize() {  
@@ -141,30 +226,6 @@ class WordFriendsApp {
             }  
         });  
     }  
-
-    // async handleTopicSelection(topic, $button) {  
-    //     try {  
-    //         const response = await $.ajax({  
-    //             url: '/api/set_topic',  
-    //             method: 'POST',  
-    //             contentType: 'application/json',  
-    //             data: JSON.stringify({ topic })  
-    //         });  
-
-    //         if (response.success) {  
-    //             $('.topic-btn').removeClass('active');  
-    //             $button.addClass('active');  
-    //             this.state.selectedTopic = topic;  
-    //             this.updateSelectedTopic(topic);  
-    //             this.updateWord(response.word);  
-    //             this.updateUI();  
-    //             this.showFeedback(`'${topic}' 주제가 선택되었습니다.`);  
-    //         }  
-    //     } catch (error) {  
-    //         this.showError('주제 선택 중 오류가 발생했습니다.');  
-    //     }  
-    // }
-
 
     async handleTopicSelection(topic, $button) {  
         try {  
@@ -257,34 +318,6 @@ class WordFriendsApp {
         this.createOrUpdateWordCard(word);  
         $('#feedback-message').removeClass('success error').text('');  
     }  
-
-    // createOrUpdateWordCard(word) {  
-    //     const $container = $('#word-cards-container');  
-    //     $container.empty();  
-
-    //     const cardHtml = `  
-    //         <div class="word-card bg-white rounded-lg shadow-md p-6 text-center">  
-    //             <h3 class="text-2xl font-bold mb-4">${word}</h3>  
-    //             <div class="flex justify-center space-x-4">  
-    //                 <button class="play-btn px-4 py-2 bg-blue-500 text-white rounded-lg">  
-    //                     <i class="fas fa-play"></i> Play  
-    //                 </button>  
-    //                 <button class="mic-btn px-4 py-2 bg-red-500 text-white rounded-lg">  
-    //                     <i class="fas fa-microphone"></i> Record  
-    //                 </button>  
-    //             </div>  
-    //             <div class="result-container mt-4"></div>  
-    //         </div>  
-    //     `;  
-
-    //     $container.html(cardHtml);  
-        
-    //     // 버튼 이벤트 리스너 추가  
-    //     const $card = $container.find('.word-card');  
-    //     $card.find('.play-btn').on('click', () => this.playWord());  
-    //     $card.find('.mic-btn').on('click', () => this.toggleRecording($card[0]));  
-    // }  
-
 
 
     createOrUpdateWordCard(word) {  
@@ -480,12 +513,6 @@ class WordFriendsApp {
     showError(message) {  
         this.showFeedback(message, true);  
     }  
-
-    // updateUI() {  
-    //     const isReady = this.state.selectedTopic && this.state.selectedCharacter;  
-    //     $('.play-btn, .mic-btn').prop('disabled', !isReady)  
-    //         .toggleClass('disabled', !isReady);  
-    // }
 
 
     updateUI() {  

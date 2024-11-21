@@ -7,6 +7,7 @@ import os
 import tempfile  
 from pathlib import Path  
 import json  
+from werkzeug.security import generate_password_hash, check_password_hash  
 
 app = Flask(__name__)  
 app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복잡한 키를 사용하세요  
@@ -14,6 +15,50 @@ app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복
 # 임시 파일을 저장할 디렉토리 생성  
 TEMP_DIR = Path(tempfile.gettempdir()) / "word_friends"  
 TEMP_DIR.mkdir(exist_ok=True)  
+
+
+
+users = {}  
+
+@app.route('/api/register', methods=['POST'])  
+def register():  
+    data = request.get_json()  
+    user_id = data.get('id')  
+    password = data.get('password')  
+    nickname = data.get('nickname')  
+
+    if user_id in users:  
+        return jsonify({'success': False, 'message': '이미 존재하는 아이디입니다.'})  
+
+    users[user_id] = {  
+        'password_hash': generate_password_hash(password),  
+        'nickname': nickname  
+    }  
+
+    return jsonify({'success': True})  
+
+@app.route('/api/login', methods=['POST'])  
+def login():  
+    data = request.get_json()  
+    user_id = data.get('id')  
+    password = data.get('password')  
+
+    if user_id not in users:  
+        return jsonify({'success': False, 'message': '존재하지 않는 아이디입니다.'})  
+
+    user = users[user_id]  
+    if check_password_hash(user['password_hash'], password):  
+        return jsonify({  
+            'success': True,  
+            'user': {  
+                'id': user_id,  
+                'nickname': user['nickname']  
+            }  
+        })  
+    
+    return jsonify({'success': False, 'message': '비밀번호가 일치하지 않습니다.'})
+
+
 
 # 초기 세션 상태 설정 함수  
 def initialize_session_state():  
