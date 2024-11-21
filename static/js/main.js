@@ -1,302 +1,377 @@
-// 상태 관리를 위한 클래스  
 class AppState {  
+    // constructor() {  
+    //     this.selectedTopic = '';  
+    //     this.selectedCharacter = '';  
+    //     this.currentWord = '';  
+    //     this.score = 0;  
+    //     this.totalAttempts = 0;  
+    //     this.isRecording = false;  
+    //     this.mediaRecorder = null;  
+    //     this.audioChunks = [];  
+    //     this.isInitialized = false;  
+    // }
+    // 카테고리, 캐릭터 디폴트
     constructor() {  
+        this.reset();  
+    }  
+
+    reset() {  
         this.selectedTopic = '';  
-        this.selectedGender = '';  
+        this.selectedCharacter = '';  
         this.currentWord = '';  
         this.score = 0;  
         this.totalAttempts = 0;  
         this.isRecording = false;  
         this.mediaRecorder = null;  
         this.audioChunks = [];  
+        this.isInitialized = false;  
     }  
 }  
 
-// 앱의 주요 기능을 관리하는 클래스  
 class WordFriendsApp {  
     constructor() {  
         this.state = new AppState();  
-        this.initializeElements();  
-        this.addEventListeners();  
-        this.updateUI();  
+        this.initialize();  
     }  
 
-    // DOM 요소 초기화  
-    initializeElements() {  
-        this.topicButtons = document.querySelectorAll('.topic-btn');  
-        this.characterButtons = document.querySelectorAll('.character-btn');  
-        this.wordCardsContainer = document.getElementById('word-cards-container');  
-        this.selectedTopicDisplay = document.getElementById('selected-topic');  
-        this.selectedGenderDisplay = document.getElementById('selected-gender');  
-        this.scoreDisplay = document.getElementById('score');  
-        this.totalAttemptsDisplay = document.getElementById('total-attempts');  
-    }  
+    // async initialize() {  
+    //     try {  
+    //         const response = await $.get('/api/check_initialization');  
+    //         if (response.selected_topic) {  
+    //             this.state.selectedTopic = response.selected_topic;  
+    //             $(`.topic-btn[data-topic="${response.selected_topic}"]`).addClass('active');  
+    //             this.updateSelectedTopic(response.selected_topic);  
+    //         }  
+    //         if (response.selected_character) {  
+    //             this.state.selectedCharacter = response.selected_character;  
+    //             $(`.character-btn[data-gender="${response.selected_character}"]`).addClass('active');  
+    //             this.updateSelectedCharacter(response.selected_character);  
+    //         }  
+    //         this.state.isInitialized = response.is_initialized;  
+    //     } catch (error) {  
+    //         console.error('초기화 중 오류 발생:', error);  
+    //     }  
 
-    // 이벤트 리스너 설정  
-    addEventListeners() {  
+    //     this.setupEventListeners();  
+    //     this.updateUI();  
+    // }
+
+
+    async initialize() {  
+        try {  
+            const response = await $.get('/api/check_initialization');  
+            
+            // 초기 상태 설정  
+            this.state.selectedTopic = response.selected_topic || '';  
+            this.state.selectedCharacter = response.selected_character || '';  
+            this.state.score = response.score || 0;  
+            this.state.totalAttempts = response.total_attempts || 0;  
+            this.state.isInitialized = response.is_initialized || false;  
+    
+            // UI 업데이트  
+            if (this.state.selectedTopic) {  
+                $(`.topic-btn[data-topic="${this.state.selectedTopic}"]`).addClass('active');  
+                this.updateSelectedTopic(this.state.selectedTopic);  
+            }  
+            
+            if (this.state.selectedCharacter) {  
+                $(`.character-btn[data-gender="${this.state.selectedCharacter}"]`).addClass('active');  
+                this.updateSelectedCharacter(this.state.selectedCharacter);  
+            }  
+    
+            this.updateScore();  
+            this.setupEventListeners();  
+            this.updateUI();  
+    
+            // 초기화가 완료되었다면 단어 카드 표시  
+            if (this.state.isInitialized) {  
+                this.getNewWord();  
+            }  
+        } catch (error) {  
+            console.error('초기화 중 오류 발생:', error);  
+            this.showError('앱 초기화 중 오류가 발생했습니다.');  
+        }  
+    }
+
+
+    setupEventListeners() {  
         // 주제 선택 이벤트  
-        this.topicButtons.forEach(button => {  
-            button.addEventListener('click', (e) => this.handleTopicSelection(e));  
+        $('.topic-btn, .topic-image-container').on('click', (e) => {  
+            const $button = $(e.target).closest('.topic-item').find('.topic-btn');  
+            const topic = $button.data('topic');  
+            this.handleTopicSelection(topic, $button);  
         });  
 
         // 캐릭터 선택 이벤트  
-        this.characterButtons.forEach(button => {  
-            button.addEventListener('click', (e) => this.handleCharacterSelection(e));  
+        $('.character-btn, .character-image-container').on('click', (e) => {  
+            const $button = $(e.target).closest('.character-item').find('.character-btn');  
+            const character = $button.data('gender');  
+            this.handleCharacterSelection(character, $button);  
         });  
 
-        // 키보드 단축키  
-        document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));  
+        // 새 단어 받기 이벤트 (스페이스바)  
+        $(document).on('keydown', (e) => {  
+            if (e.code === 'Space' && !this.state.isRecording) {  
+                e.preventDefault();  
+                this.getNewWord();  
+            }  
+        });  
     }  
 
-    // 주제 선택 처리  
-    handleTopicSelection(e) {  
-        const button = e.currentTarget;  
-        this.topicButtons.forEach(btn => btn.classList.remove('selected'));  
-        button.classList.add('selected');  
-        this.state.selectedTopic = button.dataset.topic;  
-        this.selectedTopicDisplay.textContent = `선택된 주제: ${this.state.selectedTopic}`;  
-        this.updateUI();  
-        this.getNewWord();  
-    }  
+    // async handleTopicSelection(topic, $button) {  
+    //     try {  
+    //         const response = await $.ajax({  
+    //             url: '/api/set_topic',  
+    //             method: 'POST',  
+    //             contentType: 'application/json',  
+    //             data: JSON.stringify({ topic })  
+    //         });  
 
-    // 캐릭터 선택 처리  
-    handleCharacterSelection(e) {  
-        const button = e.currentTarget;  
-        this.characterButtons.forEach(btn => btn.classList.remove('selected'));  
-        button.classList.add('selected');  
-        this.state.selectedGender = button.dataset.gender;  
-        this.selectedGenderDisplay.textContent = `선택된 캐릭터: ${this.state.selectedGender}`;  
-        this.updateUI();  
-    }  
+    //         if (response.success) {  
+    //             $('.topic-btn').removeClass('active');  
+    //             $button.addClass('active');  
+    //             this.state.selectedTopic = topic;  
+    //             this.updateSelectedTopic(topic);  
+    //             this.updateWord(response.word);  
+    //             this.updateUI();  
+    //             this.showFeedback(`'${topic}' 주제가 선택되었습니다.`);  
+    //         }  
+    //     } catch (error) {  
+    //         this.showError('주제 선택 중 오류가 발생했습니다.');  
+    //     }  
+    // }
 
-    // 키보드 단축키 처리  
-    handleKeyboardShortcuts(e) {  
-        if (e.code === 'Space' && !this.state.isRecording) {  
-            e.preventDefault();  
-            this.getNewWord();  
-        }  
-    }  
 
-    // 새 단어 가져오기  
-    async getNewWord() {  
-        if (!this.validateSelections()) return;  
-
+    async handleTopicSelection(topic, $button) {  
         try {  
-            const response = await fetch('/get_word', {  
+            if (!topic) {  
+                throw new Error('유효하지 않은 주제입니다.');  
+            }  
+    
+            const response = await $.ajax({  
+                url: '/api/set_topic',  
                 method: 'POST',  
-                headers: {  
-                    'Content-Type': 'application/json',  
-                },  
-                body: JSON.stringify({ topic: this.state.selectedTopic })  
+                contentType: 'application/json',  
+                data: JSON.stringify({ topic })  
+            });  
+    
+            if (response.success) {  
+                $('.topic-btn').removeClass('active');  
+                $button.addClass('active');  
+                this.state.selectedTopic = topic;  
+                this.updateSelectedTopic(topic);  
+                if (response.word) {  
+                    this.updateWord(response.word);  
+                }  
+                this.updateUI();  
+                this.showFeedback(`'${topic}' 주제가 선택되었습니다.`);  
+            } else {  
+                throw new Error(response.error || '주제 선택에 실패했습니다.');  
+            }  
+        } catch (error) {  
+            this.showError(error.message || '주제 선택 중 오류가 발생했습니다.');  
+            $button.removeClass('active');  
+            this.state.selectedTopic = '';  
+            this.updateUI();  
+        }  
+    }
+    
+    async handleCharacterSelection(character, $button) {  
+        try {  
+            const response = await $.ajax({  
+                url: '/api/set_character',  
+                method: 'POST',  
+                contentType: 'application/json',  
+                data: JSON.stringify({ character })  
             });  
 
-            if (!response.ok) throw new Error('단어를 가져오는데 실패했습니다.');  
-
-            const data = await response.json();  
-            this.state.currentWord = data.word;  
-            this.createWordCard(data);  
+            if (response.success) {  
+                $('.character-btn').removeClass('active');  
+                $button.addClass('active');  
+                this.state.selectedCharacter = character;  
+                this.updateSelectedCharacter(character);  
+                this.updateUI();  
+                this.showFeedback(`'${character}' 캐릭터가 선택되었습니다.`);  
+            }  
         } catch (error) {  
-            this.showError(error.message);  
+            this.showError('캐릭터 선택 중 오류가 발생했습니다.');  
         }  
     }  
 
-    // 단어 카드 생성  
-    createWordCard(data) {  
-        const cardHTML = `  
-            <div class="word-card" data-word="${data.word}">  
-                <div class="grid grid-cols-2 gap-6 p-6">  
-                    <div class="word-image-container">  
-                        <img src="${data.image_url}"   
-                             alt="${data.word}"   
-                             class="word-image rounded-lg shadow-md">  
-                    </div>  
-                    <div class="word-content flex flex-col justify-between">  
-                        <div>  
-                            <h3 class="text-2xl font-bold mb-2">${data.word}</h3>  
-                            <p class="text-gray-600 mb-4">${data.korean_meaning}</p>  
-                        </div>  
-                        <div class="button-group space-y-3">  
-                            <button class="play-btn flex items-center justify-center gap-2">  
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">  
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />  
-                                </svg>  
-                                Play  
-                            </button>  
-                            <button class="mic-btn flex items-center justify-center gap-2">  
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">  
-                                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />  
-                                </svg>  
-                                Record  
-                            </button>  
-                        </div>  
-                        <div class="result-container mt-4"></div>  
-                    </div>  
+
+    
+    async resetApp() {  
+        try {  
+            const response = await $.ajax({  
+                url: '/api/reset_session',  
+                method: 'POST'  
+            });  
+
+            if (response.success) {  
+                this.state.reset();  
+                $('.topic-btn, .character-btn').removeClass('active');  
+                $('#word-cards-container').empty();  
+                this.updateUI();  
+                this.showFeedback('앱이 초기화되었습니다.');  
+            }  
+        } catch (error) {  
+            this.showError('초기화 중 오류가 발생했습니다.');  
+        }  
+    }  
+
+
+    updateSelectedTopic(topic) {  
+        $('#selected-topic').text(`선택된 주제: ${topic}`);  
+    }  
+
+    updateSelectedCharacter(character) {  
+        $('#selected-gender').text(`선택된 캐릭터: ${character}`);  
+    }  
+
+    updateWord(word) {  
+        this.state.currentWord = word;  
+        this.createOrUpdateWordCard(word);  
+        $('#feedback-message').removeClass('success error').text('');  
+    }  
+
+    createOrUpdateWordCard(word) {  
+        const $container = $('#word-cards-container');  
+        $container.empty();  
+
+        const cardHtml = `  
+            <div class="word-card bg-white rounded-lg shadow-md p-6 text-center">  
+                <h3 class="text-2xl font-bold mb-4">${word}</h3>  
+                <div class="flex justify-center space-x-4">  
+                    <button class="play-btn px-4 py-2 bg-blue-500 text-white rounded-lg">  
+                        <i class="fas fa-play"></i> Play  
+                    </button>  
+                    <button class="mic-btn px-4 py-2 bg-red-500 text-white rounded-lg">  
+                        <i class="fas fa-microphone"></i> Record  
+                    </button>  
                 </div>  
+                <div class="result-container mt-4"></div>  
             </div>  
         `;  
 
-        this.wordCardsContainer.insertAdjacentHTML('afterbegin', cardHTML);  
-        this.addCardEventListeners(this.wordCardsContainer.firstChild);  
+        $container.html(cardHtml);  
+        
+        // 버튼 이벤트 리스너 추가  
+        const $card = $container.find('.word-card');  
+        $card.find('.play-btn').on('click', () => this.playWord());  
+        $card.find('.mic-btn').on('click', () => this.toggleRecording($card[0]));  
     }  
 
-    // 카드 이벤트 리스너 추가  
-    addCardEventListeners(card) {  
-        const playBtn = card.querySelector('.play-btn');  
-        const micBtn = card.querySelector('.mic-btn');  
-        const word = card.dataset.word;  
-
-        playBtn.addEventListener('click', () => this.playWord(word));  
-        micBtn.addEventListener('click', () => this.toggleRecording(card));  
-    }  
-
-    // 단어 재생  
-    async playWord(word) {  
+    async playWord() {  
+        if (!this.validateSelections()) return;  
+        
         try {  
-            const response = await fetch('/create_audio', {  
+            const response = await fetch('/play_word', {  
                 method: 'POST',  
                 headers: {  
                     'Content-Type': 'application/json',  
                 },  
-                body: JSON.stringify({   
-                    text: word,  
-                    gender: this.state.selectedGender  
+                body: JSON.stringify({  
+                    word: this.state.currentWord,  
+                    gender: this.state.selectedCharacter  
                 })  
             });  
 
-            if (!response.ok) throw new Error('오디오 생성에 실패했습니다.');  
+            if (!response.ok) throw new Error('음성 재생에 실패했습니다.');  
 
             const blob = await response.blob();  
             const audio = new Audio(URL.createObjectURL(blob));  
             audio.play();  
         } catch (error) {  
-            this.showError(error.message);  
+            this.showError('음성 재생 중 오류가 발생했습니다.');  
         }  
     }  
 
-    // 녹음 토글  
-    async toggleRecording(card) {  
-        const micBtn = card.querySelector('.mic-btn');  
-        
-        if (!this.state.isRecording) {  
-            try {  
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });  
-                this.startRecording(stream, card, micBtn);  
-            } catch (error) {  
-                this.showError('마이크 접근이 거부되었습니다.');  
-            }  
-        } else {  
-            this.stopRecording(card, micBtn);  
-        }  
+    showFeedback(message, isError = false) {  
+        const $feedback = $('#feedback-message');  
+        $feedback.removeClass('success error')  
+            .addClass(isError ? 'error' : 'success')  
+            .text(message);  
+
+        setTimeout(() => {  
+            $feedback.removeClass('success error').text('');  
+        }, 3000);  
     }  
 
-    // 녹음 시작  
-    startRecording(stream, card, micBtn) {  
-        this.state.isRecording = true;  
-        this.state.audioChunks = [];  
-        micBtn.classList.add('recording');  
-        micBtn.textContent = 'Recording...';  
-
-        this.state.mediaRecorder = new MediaRecorder(stream);  
-        this.state.mediaRecorder.addEventListener('dataavailable', (e) => {  
-            this.state.audioChunks.push(e.data);  
-        });  
-
-        this.state.mediaRecorder.addEventListener('stop', () => {  
-            this.processRecording(card);  
-        });  
-
-        this.state.mediaRecorder.start();  
-    }  
-
-    // 녹음 중지  
-    stopRecording(card, micBtn) {  
-        this.state.isRecording = false;  
-        micBtn.classList.remove('recording');  
-        micBtn.textContent = 'Record';  
-        this.state.mediaRecorder.stop();  
-    }  
-
-    // 녹음 처리  
-    async processRecording(card) {  
-        const audioBlob = new Blob(this.state.audioChunks);  
-        const formData = new FormData();  
-        formData.append('audio', audioBlob);  
-        formData.append('target_word', this.state.currentWord);  
-
-        try {  
-            const response = await fetch('/check_pronunciation', {  
-                method: 'POST',  
-                body: formData  
-            });  
-
-            if (!response.ok) throw new Error('발음 체크에 실패했습니다.');  
-
-            const result = await response.json();  
-            this.showResult(card, result);  
-        } catch (error) {  
-            this.showError(error.message);  
-        }  
-    }  
-
-    // 결과 표시  
-    showResult(card, result) {  
-        const resultContainer = card.querySelector('.result-container');  
-        const isCorrect = result.similarity > 0.8;  
-        
-        this.state.totalAttempts++;  
-        if (isCorrect) this.state.score++;  
-
-        resultContainer.innerHTML = `  
-            <div class="${isCorrect ? 'success-message' : 'error-message'}">  
-                <p>인식된 단어: ${result.spoken_text}</p>  
-                <p>정확도: ${Math.round(result.similarity * 100)}%</p>  
-                <p>${isCorrect ? '정답입니다!' : '다시 시도해보세요.'}</p>  
-            </div>  
-        `;  
-
-        this.updateScore();  
-    }  
-
-    // 점수 업데이트  
-    updateScore() {  
-        this.scoreDisplay.textContent = this.state.score;  
-        this.totalAttemptsDisplay.textContent = this.state.totalAttempts;  
-    }  
-
-    // 에러 표시  
-    showError(message) {  
-        alert(message);  
-    }  
-
-    // 선택 유효성 검사  
     validateSelections() {  
-        if (!this.state.selectedTopic || !this.state.selectedGender) {  
-            this.showError('주제와 캐릭터를 먼저 선택해주세요.');  
+        if (!this.state.selectedTopic || !this.state.selectedCharacter) {  
+            this.showFeedback('주제와 캐릭터를 먼저 선택해주세요.', true);  
             return false;  
         }  
         return true;  
     }  
 
-    // UI 업데이트  
+    async getNewWord() {  
+        if (!this.validateSelections()) return;  
+
+        try {  
+            const response = await $.ajax({  
+                url: '/api/get_random_word',  
+                method: 'POST',  
+                contentType: 'application/json',  
+                data: JSON.stringify({ topic: this.state.selectedTopic })  
+            });  
+
+            this.updateWord(response.word);  
+            this.showFeedback('새로운 단어가 선택되었습니다.');  
+        } catch (error) {  
+            this.showError('새 단어를 가져오는데 실패했습니다.');  
+        }  
+    }  
+
+    showError(message) {  
+        this.showFeedback(message, true);  
+    }  
+
+    // updateUI() {  
+    //     const isReady = this.state.selectedTopic && this.state.selectedCharacter;  
+    //     $('.play-btn, .mic-btn').prop('disabled', !isReady)  
+    //         .toggleClass('disabled', !isReady);  
+    // }
+
+
     updateUI() {  
-        const isReady = this.state.selectedTopic && this.state.selectedGender;  
-        document.querySelectorAll('.word-card').forEach(card => {  
-            const playBtn = card.querySelector('.play-btn');  
-            const micBtn = card.querySelector('.mic-btn');  
-            playBtn.disabled = !isReady;  
-            micBtn.disabled = !isReady;  
-        });  
+        const isReady = this.state.selectedTopic && this.state.selectedCharacter;  
+        
+        // 학습 섹션 표시/숨김  
+        $('#learning-section').toggleClass('hidden', !isReady);  
+        $('#word-cards-container').toggleClass('hidden', !isReady);  
+        
+        // 버튼 상태 업데이트  
+        $('.play-btn, .mic-btn').prop('disabled', !isReady)  
+            .toggleClass('disabled', !isReady);  
+            
+        // 선택 정보 업데이트  
+        this.updateSelectedTopic(this.state.selectedTopic || '주제를 선택해주세요');  
+        this.updateSelectedCharacter(this.state.selectedCharacter || '캐릭터를 선택해주세요');  
+        
+        // 점수 업데이트  
+        this.updateScore();  
+    }  
+
+    updateScore() {  
+        $('#score').text(this.state.score);  
+        $('#total-attempts').text(this.state.totalAttempts);  
     }  
 }  
 
 // 앱 초기화  
-document.addEventListener('DOMContentLoaded', () => {  
+$(document).ready(() => {  
     window.app = new WordFriendsApp();  
 });  
 
-// 스타일 관련 CSS 클래스 추가  
-document.head.insertAdjacentHTML('beforeend', `  
+// 스타일 추가  
+$('head').append(`  
     <style>  
+        .topic-btn.active, .character-btn.active {  
+            background-color: #4F46E5;  
+            color: white;  
+        }  
+
         .recording {  
             animation: pulse 1.5s infinite;  
             background-color: #EF4444 !important;  
@@ -311,6 +386,28 @@ document.head.insertAdjacentHTML('beforeend', `
         .disabled {  
             opacity: 0.5;  
             cursor: not-allowed;  
+        }  
+
+        #feedback-message {  
+            min-height: 24px;  
+            transition: all 0.3s ease;  
+        }  
+
+        #feedback-message.success {  
+            color: #10B981;  
+        }  
+
+        #feedback-message.error {  
+            color: #EF4444;  
+        }  
+
+        @keyframes fadeIn {  
+            from { opacity: 0; transform: translateY(-10px); }  
+            to { opacity: 1; transform: translateY(0); }  
+        }  
+
+        #feedback-message:not(:empty) {  
+            animation: fadeIn 0.3s ease-out;  
         }  
     </style>  
 `);

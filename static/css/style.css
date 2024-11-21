@@ -414,3 +414,30 @@
         padding: 0.75rem;  
     }  
 }  
+
+.topic-btn {  
+    cursor: pointer;  
+    transition: all 0.3s ease;  
+}  
+
+.topic-btn:hover {  
+    transform: translateY(-2px);  
+}  
+
+.topic-btn.active {  
+    background-color: rgb(49, 51, 63);  
+    color: white;  
+}  
+
+.topic-image-container {  
+    cursor: pointer;  
+    transition: all 0.3s ease;  
+}  
+
+.topic-image-container:hover {  
+    transform: translateY(-2px);  
+}  
+
+.topic-item {  
+    transition: all 0.3s ease;  
+}  

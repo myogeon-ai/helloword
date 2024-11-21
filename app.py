@@ -1,109 +1,334 @@
-from flask import Flask, render_template, request, jsonify, send_file  
+from flask import Flask, render_template, request, jsonify, session, send_file  
+import random  
 import speech_recognition as sr  
 from gtts import gTTS  
-import os  
-import random  
-import difflib  
 from googletrans import Translator  
-import sounddevice as sd  
-import numpy as np  
-import requests  
+import os  
 import tempfile  
+from pathlib import Path  
+import json  
 
 app = Flask(__name__)  
+app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복잡한 키를 사용하세요  
+
+# 임시 파일을 저장할 디렉토리 생성  
+TEMP_DIR = Path(tempfile.gettempdir()) / "word_friends"  
+TEMP_DIR.mkdir(exist_ok=True)  
+
+# 초기 세션 상태 설정 함수  
+def initialize_session_state():  
+    # if 'current_word' not in session:  
+    #     session['current_word'] = ''  
+    # if 'score' not in session:  
+    #     session['score'] = 0  
+    # if 'total_attempts' not in session:  
+    #     session['total_attempts'] = 0  
+    # if 'selected_topic' not in session:  
+    #     session['selected_topic'] = ''  
+    # if 'selected_character' not in session:  
+    #     session['selected_character'] = ''  
+    # if 'is_initialized' not in session:  
+    #     session['is_initialized'] = False
+
+    # 카테고리, 캐릭터 디폴트
+    # 세션을 완전히 초기화  
+    session.clear()  
+    # 기본값 설정  
+    session['current_word'] = ''  
+    session['score'] = 0  
+    session['total_attempts'] = 0  
+    session['selected_topic'] = ''  
+    session['selected_character'] = ''  
+    session['is_initialized'] = False  
 
 # 단어 목록  
-WORDS = {  
-    'School': ['teacher', 'student', 'classroom', 'book', 'pencil',   
-              'desk', 'blackboard', 'homework', 'library', 'exam',  
-              'notebook', 'eraser', 'pen', 'ruler', 'calculator'],  
-    'Family': ['mother', 'father', 'sister', 'brother', 'grandmother',   
-               'grandfather', 'aunt', 'uncle', 'cousin', 'baby',   
-               'parents', 'daughter', 'son', 'wife', 'husband'],  
-    'Animals': ['dog', 'cat', 'elephant', 'lion', 'tiger',   
-                'monkey', 'giraffe', 'penguin', 'kangaroo', 'bear',   
-                'rabbit', 'snake', 'bird', 'fish', 'dolphin'],  
-    'Weather': ['sunny', 'rainy', 'cloudy', 'windy', 'snowy',   
-                'storm', 'rainbow', 'thunder', 'fog', 'hail',   
-                'hurricane', 'tornado', 'breeze', 'humid', 'dry'],  
-    'Food': ['pizza', 'hamburger', 'spaghetti', 'sushi', 'rice',   
-             'chicken', 'salad', 'fruit', 'ice cream', 'bread',   
-             'sandwich', 'soup', 'noodle', 'cake', 'chocolate']  
-}  
+def get_word_list(topic):  
+    word_lists = {  
+        'School': ['teacher', 'student', 'classroom', 'book', 'pencil',  
+                  'desk', 'blackboard', 'homework', 'library', 'exam',  
+                  'notebook', 'chair', 'teacher\'s desk', 'student id card', 'ruler'],  
+        'Family': ['mother', 'father', 'sister', 'brother', 'grandmother',  
+                  'grandfather', 'aunt', 'uncle', 'cousin', 'baby'],  
+        'Animals': ['dog', 'cat', 'bird', 'fish', 'rabbit',  
+                   'elephant', 'lion', 'tiger', 'monkey', 'giraffe'],  
+        'Weather': ['sunny', 'rainy', 'cloudy', 'windy', 'snowy',  
+                   'hot', 'cold', 'warm', 'cool', 'stormy'],  
+        'Food': ['pizza', 'hamburger', 'spaghetti', 'rice', 'bread',  
+                'salad', 'soup', 'chicken', 'ice cream', 'cake']  
+    }  
+    # return word_lists.get(topic, word_lists['School'])
+    return word_lists.get(topic, [])  # 기본값을 빈 리스트로 변경  
 
 @app.route('/')  
 def index():  
+    initialize_session_state()  
     return render_template('index.html')  
 
-@app.route('/get_word', methods=['POST'])  
-def get_word():  
-    topic = request.json.get('topic')  
-    if topic not in WORDS:  
-        return jsonify({'error': 'Invalid topic'}), 400  
+@app.route('/api/check_initialization', methods=['GET'])  
+def check_initialization():
+    # 현재 선택된 주제와 캐릭터 가져오기  
+    current_topic = session.get('selected_topic', '')  
+    current_character = session.get('selected_character', '')  
     
-    word = random.choice(WORDS[topic])  
-    
-    # Pexels API를 사용하여 이미지 가져오기  
-    headers = {  
-        "Authorization": "YOUR_PEXELS_API_KEY"  
-    }  
-    search_url = f"https://api.pexels.com/v1/search?query={word}&per_page=1"  
-    response = requests.get(search_url, headers=headers)  
-    image_url = response.json()['photos'][0]['src']['original'] if response.ok else None  
-
-    # 단어 번역  
-    translator = Translator()  
-    try:  
-        korean_meaning = translator.translate(word, src='en', dest='ko').text  
-    except:  
-        korean_meaning = "번역 불가"  
-
+    # 둘 다 선택되었을 때만 초기화되었다고 판단  
+    is_initialized = bool(current_topic and current_character)  # 카테고리, 캐릭터 디폴트
+    session['is_initialized'] = is_initialized  # 카테고리, 캐릭터 디폴트
     return jsonify({  
-        'word': word,  
-        'image_url': image_url,  
-        'korean_meaning': korean_meaning  
+        # 'is_initialized': session.get('is_initialized', False),  
+        # 'selected_topic': session.get('selected_topic'),  
+        # 'selected_character': session.get('selected_character'),
+        'is_initialized': is_initialized,  
+        'selected_topic': current_topic,  
+        'selected_character': current_character, 
+        'score': session.get('score', 0),  
+        'total_attempts': session.get('total_attempts', 0)  
     })  
 
-@app.route('/create_audio', methods=['POST'])  
-def create_audio():  
-    text = request.json.get('text')  
-    gender = request.json.get('gender')  
-    
-    if not text or not gender:  
-        return jsonify({'error': 'Missing parameters'}), 400  
 
-    tld = 'co.uk' if gender == 'Boy' else 'com'  
-    tts = gTTS(text=text, lang='en', tld=tld)  
-    
-    # 임시 파일로 저장  
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')  
-    tts.save(temp_file.name)  
-    
-    return send_file(temp_file.name, mimetype='audio/mp3')  
-
-@app.route('/check_pronunciation', methods=['POST'])  
-def check_pronunciation():  
-    if 'audio' not in request.files:  
-        return jsonify({'error': 'No audio file'}), 400  
-
-    audio_file = request.files['audio']  
-    target_word = request.form.get('target_word')  
-
-    r = sr.Recognizer()  
+@app.route('/api/set_topic', methods=['POST'])  
+def set_topic():  
     try:  
-        with sr.AudioFile(audio_file) as source:  
-            audio_data = r.record(source)  
-            text = r.recognize_google(audio_data, language='en-US').lower()  
-            similarity = difflib.SequenceMatcher(None, target_word, text).ratio()  
-
+        data = request.get_json()  
+        topic = data.get('topic', '')   # 카테고리, 캐릭터 디폴트
+        
+        # 유효한 주제 목록  
+        valid_topics = ['School', 'Family', 'Animals', 'Weather', 'Food']  
+        
+        if topic not in valid_topics:  
             return jsonify({  
-                'success': True,  
-                'spoken_text': text,  
-                'similarity': similarity,  
-                'is_correct': similarity > 0.8  
-            })  
-    except:  
-        return jsonify({'error': 'Speech recognition failed'}), 400  
+                'success': False,   
+                'error': f'Invalid topic. Valid topics are: {", ".join(valid_topics)}'  
+            }), 400  
+            
+        words = get_word_list(topic)  
+        if not words:  
+            return jsonify({  
+                'success': False,  
+                'error': f'No words found for topic: {topic}'  
+            }), 400  
+            
+        new_word = random.choice(words)  
+        
+        # 세션 업데이트  
+        session['selected_topic'] = topic  
+        session['current_word'] = new_word  
+        
+        # if session.get('selected_character'):  
+        #     session['is_initialized'] = True  
+        # 둘 다 선택되었을 때만 초기화  # 카테고리, 캐릭터 디폴트
+        session['is_initialized'] = bool(  
+            session.get('selected_topic') and   
+            session.get('selected_character')
+        )
+            
+        return jsonify({  
+            'success': True,  
+            'topic': topic,  
+            'word': new_word,  
+            # 'is_initialized': session.get('is_initialized', False)
+            'is_initialized': session['is_initialized'] # 카테고리, 캐릭터 디폴트
+        })  
+        
+    except Exception as e:  
+        print(f"Error in set_topic: {str(e)}")  # 디버깅을 위한 로그  
+        return jsonify({  
+            'success': False,  
+            'error': f'An error occurred while setting topic: {str(e)}'  
+        }), 500
+    
+@app.route('/api/get_current_topic', methods=['GET'])  
+def get_current_topic():  
+    return jsonify({  
+        'success': True,  
+        'topic': session.get('selected_topic', '')    # 카테고리, 캐릭터 디폴트
+    })  
+
+
+@app.route('/api/set_character', methods=['POST'])  
+def set_character():  
+    try:  
+        data = request.get_json()  
+        character = data.get('character', '')   # 카테고리, 캐릭터 디폴트
+        
+        if character not in ['Boy', 'Girl']:  
+            return jsonify({'success': False, 'error': 'Invalid character'}), 400  
+            
+        session['selected_character'] = character  
+        
+        # if session.get('selected_topic'):  
+        #     session['is_initialized'] = True
+        # # 둘 다 선택되었을 때만 초기화    # 카테고리, 캐릭터 디폴트
+        session['is_initialized'] = bool(  
+            session.get('selected_topic') and   
+            session.get('selected_character')  
+        )
+            
+        return jsonify({  
+            'success': True,  
+            'character': character,  
+            # 'is_initialized': session.get('is_initialized', False)
+            'is_initialized': session['is_initialized']    # 카테고리, 캐릭터 디폴트 
+        })  
+    except Exception as e:  
+        return jsonify({  
+            'success': False,  
+            'error': str(e)  
+        }), 500  
+
+@app.route('/api/get_current_character', methods=['GET'])  
+def get_current_character():  
+    return jsonify({  
+        'success': True,  
+        'character': session.get('selected_character', '')  # 카테고리, 캐릭터 디폴트
+    })  
+
+@app.route('/api/get_random_word', methods=['POST'])  
+def get_random_word():  
+    try:  
+        # topic = session.get('selected_topic', 'School')  
+        # words = get_word_list(topic)  
+        # current_word = session.get('current_word', '')  
+        
+        # # 현재 단어를 제외한 새로운 단어 선택  
+        # available_words = [word for word in words if word != current_word]  
+        # if not available_words:  
+        #     available_words = words  
+            
+        # word = random.choice(available_words)  
+        # session['current_word'] = word  
+        
+        # 카테고리, 캐릭터 디폴트
+        topic = session.get('selected_topic', '')  # 'School' 대신 빈 문자열로 변경  
+        if not topic:  # 주제가 선택되지 않은 경우  
+            return jsonify({  
+                'success': False,  
+                'error': 'No topic selected'  
+            }), 400  
+            
+        words = get_word_list(topic)  
+        current_word = session.get('current_word', '')  
+        
+        return jsonify({  
+            'success': True,  
+            'word': word  
+        })  
+    except Exception as e:  
+        return jsonify({  
+            'success': False,  
+            'error': str(e)  
+        }), 500  
+
+@app.route('/play_word', methods=['POST'])  
+def play_word():  
+    try:  
+        data = request.get_json()  
+        word = data.get('word')  
+        # gender = session.get('selected_character', 'Boy')  
+        gender = session.get('selected_character', '')   # 카테고리, 캐릭터 디폴트
+
+        if not word:  
+            return jsonify({'success': False, 'error': 'Word is required'}), 400  
+        
+        # 카테고리, 캐릭터 디폴트
+        if not gender:  # 캐릭터가 선택되지 않은 경우  
+            return jsonify({'success': False, 'error': 'Character not selected'}), 400  
+
+        # 나머지 코드는 동일  
+        # 음성 파일 경로 설정  
+        voice_file = TEMP_DIR / f"{word}_{gender}.mp3"  
+
+        # 음성 파일이 없으면 생성  
+        if not voice_file.exists():  
+            tts = gTTS(text=word, lang='en', slow=False)  
+            tts.save(str(voice_file))  
+
+        return send_file(  
+            str(voice_file),  
+            mimetype='audio/mp3',  
+            as_attachment=True,  
+            download_name=f"{word}.mp3"  
+        )  
+
+    except Exception as e:  
+        print(f"Error in play_word: {str(e)}")  
+        return jsonify({'success': False, 'error': str(e)}), 500  
+
+@app.route('/api/check_pronunciation', methods=['POST'])  
+def check_pronunciation():  
+    try:  
+        if 'audio' not in request.files:  
+            return jsonify({'success': False, 'message': '음성 파일이 없습니다.'}), 400  
+
+        audio_file = request.files['audio']  
+        current_word = session.get('current_word', '').lower()  
+
+        # 음성 인식기 초기화  
+        recognizer = sr.Recognizer()  
+
+        # 임시 파일로 저장  
+        temp_audio = TEMP_DIR / "temp_audio.wav"  
+        audio_file.save(str(temp_audio))  
+
+        # 음성 인식  
+        with sr.AudioFile(str(temp_audio)) as source:  
+            audio = recognizer.record(source)  
+            try:  
+                recognized_text = recognizer.recognize_google(audio).lower()  
+                
+                # 정확도 계산  
+                if recognized_text == current_word:  
+                    session['score'] = session.get('score', 0) + 1  
+                    message = "정확한 발음입니다! 👏"  
+                    success = True  
+                else:  
+                    message = f"다시 시도해보세요. 인식된 단어: {recognized_text}"  
+                    success = False  
+
+                session['total_attempts'] = session.get('total_attempts', 0) + 1  
+                
+                return jsonify({  
+                    'success': success,  
+                    'message': message,  
+                    'recognized_text': recognized_text,  
+                    'score': session['score'],  
+                    'total_attempts': session['total_attempts']  
+                })  
+
+            except sr.UnknownValueError:  
+                return jsonify({'success': False, 'message': '음성을 인식할 수 없습니다. 다시 시도해주세요.'})  
+            except sr.RequestError:  
+                return jsonify({'success': False, 'message': '음성 인식 서비스에 접속할 수 없습니다.'})  
+
+    except Exception as e:  
+        print(f"Error in check_pronunciation: {str(e)}")  
+        return jsonify({'success': False, 'message': f'오류가 발생했습니다: {str(e)}'}), 500  
+    finally:  
+        # 임시 파일 삭제  
+        if 'temp_audio' in locals():  
+            temp_audio.unlink(missing_ok=True)  
+
+@app.route('/api/reset_session', methods=['POST'])  
+def reset_session():  
+    try:  
+        session.clear()  
+        initialize_session_state()  
+        return jsonify({  
+            'success': True,  
+            'message': '세션이 초기화되었습니다.'  
+        })  
+    except Exception as e:  
+        return jsonify({  
+            'success': False,  
+            'error': str(e)  
+        }), 500  
+
+@app.route('/api/get_score', methods=['GET'])  
+def get_score():  
+    return jsonify({  
+        'success': True,  
+        'score': session.get('score', 0),  
+        'total_attempts': session.get('total_attempts', 0)  
+    })  
 
 if __name__ == '__main__':  
     app.run(debug=True)
