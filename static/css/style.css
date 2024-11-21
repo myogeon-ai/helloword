@@ -1,0 +1,186 @@
+/* 전체 스타일 */  
+body {  
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;  
+}  
+
+/* 주제 버튼 스타일 */  
+.topic-btn {  
+    background-color: #4F46E5;  
+    color: white;  
+    padding: 0.5rem 1rem;  
+    border-radius: 0.5rem;  
+    font-weight: 500;  
+    transition: all 0.2s;  
+}  
+
+.topic-btn:hover {  
+    background-color: #4338CA;  
+    transform: translateY(-1px);  
+}  
+
+.topic-btn.selected {  
+    background-color: #312E81;  
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #312E81;  
+}  
+
+/* 이미지 컨테이너 스타일 */  
+.topic-image-container, .character-image-container {  
+    position: relative;  
+    overflow: hidden;  
+    border-radius: 0.5rem;  
+    transition: transform 0.2s;  
+}  
+
+.topic-image-container:hover, .character-image-container:hover {  
+    transform: translateY(-2px);  
+}  
+
+/* 캐릭터 버튼 스타일 */  
+.character-btn {  
+    background-color: #EC4899;  
+    color: white;  
+    padding: 0.5rem 1rem;  
+    border-radius: 0.5rem;  
+    font-weight: 500;  
+    transition: all 0.2s;  
+}  
+
+.character-btn:hover {  
+    background-color: #DB2777;  
+    transform: translateY(-1px);  
+}  
+
+.character-btn.selected {  
+    background-color: #9D174D;  
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #9D174D;  
+}  
+
+/* 단어 카드 스타일 */  
+.word-card {  
+    background: white;  
+    border-radius: 1rem;  
+    overflow: hidden;  
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);  
+    transition: transform 0.2s;  
+}  
+
+.word-card:hover {  
+    transform: translateY(-2px);  
+}  
+
+/* 단어 이미지 스타일 */  
+.word-image {  
+    width: 100%;  
+    height: 200px;  
+    object-fit: cover;  
+}  
+
+/* 버튼 스타일 */  
+.play-btn, .mic-btn {  
+    width: 100%;  
+    padding: 0.75rem;  
+    border-radius: 0.5rem;  
+    font-weight: 500;  
+    transition: all 0.2s;  
+}  
+
+.play-btn {  
+    background-color: #3B82F6;  
+    color: white;  
+}  
+
+.play-btn:hover {  
+    background-color: #2563EB;  
+}  
+
+.mic-btn {  
+    background-color: #10B981;  
+    color: white;  
+}  
+
+.mic-btn:hover {  
+    background-color: #059669;  
+}  
+
+/* 결과 메시지 스타일 */  
+.success-message {  
+    color: #059669;  
+    background-color: #D1FAE5;  
+    border-radius: 0.5rem;  
+    padding: 1rem;  
+    margin-top: 1rem;  
+}  
+
+.error-message {  
+    color: #DC2626;  
+    background-color: #FEE2E2;  
+    border-radius: 0.5rem;  
+    padding: 1rem;  
+    margin-top: 1rem;  
+}  
+
+/* 사이드바 스타일 */  
+.sidebar-content {  
+    height: 100%;  
+    display: flex;  
+    flex-direction: column;  
+}  
+
+/* 도움말 섹션 스타일 */  
+details summary {  
+    list-style: none;  
+}  
+
+details summary::-webkit-details-marker {  
+    display: none;  
+}  
+
+details summary::after {  
+    content: '▼';  
+    float: right;  
+    font-size: 0.8em;  
+    transition: transform 0.2s;  
+}  
+
+details[open] summary::after {  
+    transform: rotate(180deg);  
+}  
+
+/* 애니메이션 효과 */  
+@keyframes fadeIn {  
+    from { opacity: 0; transform: translateY(10px); }  
+    to { opacity: 1; transform: translateY(0); }  
+}  
+
+.word-card {  
+    animation: fadeIn 0.3s ease-out;  
+}  
+
+/* 반응형 디자인 */  
+@media (max-width: 1024px) {  
+    .grid-cols-5 {  
+        grid-template-columns: repeat(3, 1fr);  
+    }  
+}  
+
+@media (max-width: 768px) {  
+    .grid-cols-5 {  
+        grid-template-columns: repeat(2, 1fr);  
+    }  
+    
+    .grid-cols-2 {  
+        grid-template-columns: 1fr;  
+    }  
+}  
+
+@media (max-width: 640px) {  
+    .grid-cols-5 {  
+        grid-template-columns: 1fr;  
+    }  
+    
+    .sidebar-content {  
+        position: static;  
+        width: 100%;  
+        margin-bottom: 2rem;  
+    }  
+}
