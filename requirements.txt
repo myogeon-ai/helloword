@@ -3,6 +3,6 @@ SpeechRecognition==3.8.1
 gTTS==2.2.3
 googletrans==4.0.0-rc1
 requests==2.26.0
-numpy==1.21.2
+numpy==1.22.0
 sounddevice==0.4.3
 werkzeug==2.0.3
