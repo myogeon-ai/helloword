@@ -13,5 +13,9 @@ __pycache__/
 *$py.class
 
 
+<<<<<<< HEAD
 
 .DS_Store
+=======
+.DS_Store
+>>>>>>> 2f0edea360ba106e3982d58b3627c185b9b7c76c
