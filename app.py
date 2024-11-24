@@ -107,8 +107,9 @@ def login():
 
 
     with engine.connect() as conn:
-        cur = conn.exec_driver_sql("SELECT * FROM user_info where user_id = '" + user_id + "' ")
+        cur = conn.exec_driver_sql("SELECT user_pwd, user_nick FROM user_info where user_id = '" + user_id + "' ")
         q_val = cur.fetchone()
+
 
     if q_val == None:
         return jsonify({'success': False, 'message': '존재하지 않는 아이디입니다.'})  
