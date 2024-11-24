@@ -6,9 +6,3 @@ requests
 numpy
 sounddevice
 werkzeug
-psycopg2
-<<<<<<< HEAD
-standard-aifc
-=======
-standard-aifc
->>>>>>> 656d108a2c51a22f3e4828c6c123e84b72e8097d
