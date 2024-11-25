@@ -38,19 +38,12 @@ from sqlalchemy import create_engine
 # pip install -r requirements.txt
 ###########################################
 
-
-
-
-
-app = Flask(__name__)  
-app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복잡한 키를 사용하세요  
+app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 # 임시 파일을 저장할 디렉토리 생성  
 TEMP_DIR = Path(tempfile.gettempdir()) / "word_friends"  
 TEMP_DIR.mkdir(exist_ok=True)  
-
-
 
 
 ###########################################
@@ -71,10 +64,16 @@ TEMP_DIR.mkdir(exist_ok=True)
 engine = sa.create_engine("postgresql://neondb_owner:Wcid23lFsHTK@ep-blue-lab-a1gjolcg-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")
 
 
+users = {}
+
+# 메인 화면
+@app.route('/')
+def index():
+    initialize_session_state()
+    return render_template('index.html')
 
 
-users = {}  
-
+# 회원 가입
 @app.route('/api/register', methods=['POST'])  
 def register():  
     data = request.get_json()  
@@ -94,10 +93,11 @@ def register():
     
     with engine.begin() as conn:
         conn.execute(sa.text("INSERT INTO user_info (user_id, user_pwd, user_nick) VALUES ('" + user_id + "', '" + password + "', '" + nickname + "')"))
-    
 
     return jsonify({'success': True})  
 
+
+# 로그인
 @app.route('/api/login', methods=['POST'])  
 def login():
     data = request.get_json()  
@@ -105,15 +105,12 @@ def login():
     password = data.get('password')
     # password = generate_password_hash(password)
 
-
     with engine.connect() as conn:
         cur = conn.exec_driver_sql("SELECT user_pwd, user_nick FROM user_info where user_id = '" + user_id + "' ")
         q_val = cur.fetchone()
 
-
     if q_val == None:
-        return jsonify({'success': False, 'message': '존재하지 않는 아이디입니다.'})  
-
+        return jsonify({'success': False, 'message': '존재하지 않는 아이디입니다.'})
 
     # if check_password_hash(user['password_hash'], password):
     if q_val[0]== password:
@@ -125,7 +122,6 @@ def login():
             }
         })
     return jsonify({'success': False, 'message': '비밀번호가 일치하지 않습니다.'})
-
 
 
 # 초기 세션 상태 설정 함수  
@@ -145,14 +141,15 @@ def initialize_session_state():
 
     # 카테고리, 캐릭터 디폴트
     # 세션을 완전히 초기화  
-    session.clear()  
+    session.clear()
     # 기본값 설정  
     session['current_word'] = ''  
     session['score'] = 0  
     session['total_attempts'] = 0  
     session['selected_topic'] = ''  
     session['selected_character'] = ''  
-    session['is_initialized'] = False  
+    session['is_initialized'] = False
+
 
 # 단어 목록  
 def get_word_list(topic):  
@@ -172,11 +169,8 @@ def get_word_list(topic):
     # return word_lists.get(topic, word_lists['School'])
     return word_lists.get(topic, [])  # 기본값을 빈 리스트로 변경  
 
-@app.route('/')  
-def index():  
-    initialize_session_state()  
-    return render_template('index.html')  
 
+# 선택된 주제와 캐릭터
 @app.route('/api/check_initialization', methods=['GET'])  
 def check_initialization():
     # 현재 선택된 주제와 캐릭터 가져오기  
@@ -198,6 +192,7 @@ def check_initialization():
     })  
 
 
+# 토픽 선택
 @app.route('/api/set_topic', methods=['POST'])  
 def set_topic():  
     try:  
@@ -248,7 +243,9 @@ def set_topic():
             'success': False,  
             'error': f'An error occurred while setting topic: {str(e)}'  
         }), 500
-    
+
+
+# 현재 선택된 토픽
 @app.route('/api/get_current_topic', methods=['GET'])  
 def get_current_topic():  
     return jsonify({  
@@ -256,7 +253,7 @@ def get_current_topic():
         'topic': session.get('selected_topic', '')    # 카테고리, 캐릭터 디폴트
     })  
 
-
+# 캐릭터 선택(AI 친구 선택)
 @app.route('/api/set_character', methods=['POST'])  
 def set_character():  
     try:  
@@ -288,6 +285,7 @@ def set_character():
             'error': str(e)  
         }), 500  
 
+# 현재 선택된 캐릭터
 @app.route('/api/get_current_character', methods=['GET'])  
 def get_current_character():  
     return jsonify({  
@@ -295,6 +293,7 @@ def get_current_character():
         'character': session.get('selected_character', '')  # 카테고리, 캐릭터 디폴트
     })  
 
+# 랜덤 단어
 @app.route('/api/get_random_word', methods=['POST'])  
 def get_random_word():  
     try:  
@@ -331,6 +330,8 @@ def get_random_word():
             'error': str(e)  
         }), 500  
 
+
+# 단어 재생
 @app.route('/play_word', methods=['POST'])  
 def play_word():  
     try:  
@@ -366,6 +367,8 @@ def play_word():
         print(f"Error in play_word: {str(e)}")  
         return jsonify({'success': False, 'error': str(e)}), 500  
 
+
+# 발음 체크
 @app.route('/api/check_pronunciation', methods=['POST'])  
 def check_pronunciation():  
     try:  
@@ -412,14 +415,16 @@ def check_pronunciation():
             except sr.RequestError:  
                 return jsonify({'success': False, 'message': '음성 인식 서비스에 접속할 수 없습니다.'})  
 
-    except Exception as e:  
-        print(f"Error in check_pronunciation: {str(e)}")  
-        return jsonify({'success': False, 'message': f'오류가 발생했습니다: {str(e)}'}), 500  
-    finally:  
+    except Exception as e:
+        print(f"Error in check_pronunciation: {str(e)}")
+        return jsonify({'success': False, 'message': f'오류가 발생했습니다: {str(e)}'}), 500
+    finally:
         # 임시 파일 삭제  
         if 'temp_audio' in locals():  
-            temp_audio.unlink(missing_ok=True)  
+            temp_audio.unlink(missing_ok=True)
 
+
+# 세션 초기화
 @app.route('/api/reset_session', methods=['POST'])  
 def reset_session():  
     try:  
@@ -435,13 +440,18 @@ def reset_session():
             'error': str(e)  
         }), 500  
 
+
+# 점수 조회
 @app.route('/api/get_score', methods=['GET'])  
 def get_score():  
     return jsonify({  
         'success': True,  
         'score': session.get('score', 0),  
         'total_attempts': session.get('total_attempts', 0)  
-    })  
+    })
+
+
+# 결과
 @app.route('/api/check-answer', methods=['POST'])  
 def check_answer():  
     data = request.get_json()  
@@ -460,12 +470,14 @@ def check_answer():
         'userPronunciation': user_answer  
     })  
 
+
 # 단어 데이터베이스 관련 코드도 추가  
 words_db = {  
     'easy': ['cat', 'dog', 'bird', ...],  
     'medium': ['elephant', 'giraffe', ...],  
     'hard': ['pronunciation', 'vocabulary', ...]  
 }  
+
 
 @app.route('/api/get-word', methods=['GET'])  
 def get_word():  
