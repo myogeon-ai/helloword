@@ -8,3 +8,4 @@ sounddevice
 werkzeug
 openai
 psycopg2-binary
+sqlalchemy
