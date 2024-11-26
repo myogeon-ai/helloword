@@ -47,7 +47,7 @@ pandas==2.2.3
 pillow==11.0.0
 pip==24.3.1
 protobuf==5.28.3
-psycopg2==2.9.10
+psycopg2
 psycopg2-binary==2.9.10
 py-moneyed==0.8.0
 pyarrow==18.0.0.dev206
