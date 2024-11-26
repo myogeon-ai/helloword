@@ -6,3 +6,6 @@ requests
 numpy
 sounddevice
 werkzeug
+openai
+dotenv
+psycopg2
