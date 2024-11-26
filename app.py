@@ -1,6 +1,23 @@
-from flask import Flask, render_template, request, jsonify, session, send_file  
-import random  
+# pip install flask
+# pip install flask-requests
+from flask import Flask, render_template, request, jsonify, session, send_file
+
+# pip install SpeechRecognition
 import speech_recognition as sr  
+# import SpeechRecognition as sr 
+
+import random 
+
+# pip install python-Levenshtein
+# import Levenshtein  
+
+# pip install psycopg2
+# pip install psycopg2-binary==2.9.10
+# # pip install pycopy-aifc
+# pip install standard-aifc
+import psycopg2
+
+# pip install gTTS    
 from gtts import gTTS  
 from googletrans import Translator  
 import os  
@@ -11,13 +28,79 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from difflib import SequenceMatcher
 
 
+import sqlalchemy as sa
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine
+
+
+# import openai
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+
+import logging
+import traceback
+###########################################
+# python -m pip freeze > requirements.txt
+# pip list --format=freeze > requirements.txt
+# pip install -r requirements.txt
+###########################################
+
+
+
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)  
 app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복잡한 키를 사용하세요  
+app.secret_key = os.urandom(24)
 
 # 임시 파일을 저장할 디렉토리 생성  
 TEMP_DIR = Path(tempfile.gettempdir()) / "word_friends"  
 TEMP_DIR.mkdir(exist_ok=True)  
 
+
+
+
+###########################################
+# db conn info
+###########################################
+# # # local
+# db = psycopg2.connect(dbname='test',
+#                       user='admin',
+#                       host='localhost',
+#                       password='123!@#4$',
+#                       port=5432)
+# cur = db.cursor()
+
+# # # local
+# engine = sa.create_engine("postgresql://admin:1234@localhost/test")
+
+# # vercel
+engine = sa.create_engine("postgresql://neondb_owner:Wcid23lFsHTK@ep-blue-lab-a1gjolcg-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")
+
+
+#### local ######################################
+# API KEY 정보로드
+load_dotenv()
+
+
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# API 키 검증
+if not os.getenv('OPENAI_API_KEY'):
+    logger.error("OpenAI API 키가 설정되지 않았습니다!")
+    raise ValueError("OPENAI_API_KEY must be set in .env file")
+
+
+
+
+
+
+# 대화 기록을 저장할 세션 변수
+conversations = {}
 
 
 users = {}  
@@ -29,35 +112,48 @@ def register():
     password = data.get('password')  
     nickname = data.get('nickname')  
 
-    if user_id in users:  
+    with engine.connect() as conn:
+        cur = conn.exec_driver_sql("SELECT * FROM user_info where user_id = '" + user_id + "' ")
+        q_val = cur.fetchone()
+
+    if q_val != None:
+        print(q_val)
         return jsonify({'success': False, 'message': '이미 존재하는 아이디입니다.'})  
 
-    users[user_id] = {  
-        'password_hash': generate_password_hash(password),  
-        'nickname': nickname  
-    }  
+    # password = generate_password_hash(password)
+    
+    with engine.begin() as conn:
+        conn.execute(sa.text("INSERT INTO user_info (user_id, user_pwd, user_nick) VALUES ('" + user_id + "', '" + password + "', '" + nickname + "')"))
+    
 
     return jsonify({'success': True})  
 
 @app.route('/api/login', methods=['POST'])  
-def login():  
+def login():
     data = request.get_json()  
     user_id = data.get('id')  
-    password = data.get('password')  
+    password = data.get('password')
+    # password = generate_password_hash(password)
 
-    if user_id not in users:  
+
+    with engine.connect() as conn:
+        cur = conn.exec_driver_sql("SELECT user_pwd, user_nick FROM user_info where user_id = '" + user_id + "' ")
+        q_val = cur.fetchone()
+
+
+    if q_val == None:
         return jsonify({'success': False, 'message': '존재하지 않는 아이디입니다.'})  
 
-    user = users[user_id]  
-    if check_password_hash(user['password_hash'], password):  
+
+    # if check_password_hash(user['password_hash'], password):
+    if q_val[0]== password:
         return jsonify({  
             'success': True,  
             'user': {  
                 'id': user_id,  
-                'nickname': user['nickname']  
-            }  
-        })  
-    
+                'nickname': q_val[1]
+            }
+        })
     return jsonify({'success': False, 'message': '비밀번호가 일치하지 않습니다.'})
 
 
@@ -232,17 +328,17 @@ def get_current_character():
 @app.route('/api/get_random_word', methods=['POST'])  
 def get_random_word():  
     try:  
-        # topic = session.get('selected_topic', 'School')  
-        # words = get_word_list(topic)  
-        # current_word = session.get('current_word', '')  
+        topic = session.get('selected_topic', 'School')  
+        words = get_word_list(topic)  
+        current_word = session.get('current_word', '')  
         
-        # # 현재 단어를 제외한 새로운 단어 선택  
-        # available_words = [word for word in words if word != current_word]  
-        # if not available_words:  
-        #     available_words = words  
+        # 현재 단어를 제외한 새로운 단어 선택  
+        available_words = [word for word in words if word != current_word]  
+        if not available_words:  
+            available_words = words  
             
-        # word = random.choice(available_words)  
-        # session['current_word'] = word  
+        word = random.choice(available_words)  
+        session['current_word'] = word  
         
         # 카테고리, 캐릭터 디폴트
         topic = session.get('selected_topic', '')  # 'School' 대신 빈 문자열로 변경  
@@ -409,6 +505,98 @@ def get_word():
         'word': word,  
         'difficulty': difficulty  
     }) 
+
+
+
+
+
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        # 요청 데이터 로깅
+        logger.debug(f"Received request data: {request.json}")
+        
+        # 사용자 메시지와 세션 ID 받기
+        data = request.json
+        user_message = data.get('message', '')
+        session_id = data.get('session_id', 'default')
+
+        # 입력값 검증
+        if not user_message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        # 세션별 대화 기록 초기화
+        if session_id not in conversations:
+            conversations[session_id] = [
+                {"role": "system", "content": "You are a helpful assistant."}
+            ]
+
+        # 현재 대화 기록에 사용자 메시지 추가
+        conversations[session_id].append(
+            {"role": "user", "content": user_message}
+        )
+
+        logger.debug(f"Sending messages to OpenAI: {conversations[session_id]}")
+
+        try:
+            # ChatGPT API 호출
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=conversations[session_id],
+                temperature=0.7,
+                max_tokens=1000
+            )
+
+            # 응답 로깅
+            logger.debug(f"OpenAI API Response: {response}")
+
+            # 챗봇 응답 추출
+            bot_message = response.choices[0].message.content
+
+            # 대화 기록에 챗봇 응답 추가
+            conversations[session_id].append(
+                {"role": "assistant", "content": bot_message}
+            )
+
+            # 대화 기록 길이 제한 (최근 10개 메시지 유지)
+            conversations[session_id] = conversations[session_id][-10:]
+
+            return jsonify({
+                'message': bot_message,
+                'session_id': session_id
+            })
+
+        except Exception as api_error:
+            # OpenAI API 관련 에러 상세 로깅
+            logger.error(f"OpenAI API Error: {str(api_error)}")
+            logger.error(f"Error details: {traceback.format_exc()}")
+            
+            error_message = str(api_error)
+            error_type = type(api_error).__name__
+
+            # 클라이언트에게 보낼 에러 메시지 구성
+            return jsonify({
+                'error': f"API Error ({error_type}): {error_message}",
+                'session_id': session_id
+            }), 500
+
+    except Exception as e:
+        # 일반적인 서버 에러 로깅
+        logger.error(f"Server Error: {str(e)}")
+        logger.error(f"Error details: {traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f"Server Error: {str(e)}",
+            'session_id': session_id
+        }), 500
+
+# # # 에러 핸들러 추가
+# @app.errorhandler(Exception)
+# def handle_error(e):
+#     logger.error(f"Unhandled Error: {str(e)}")
+#     logger.error(f"Error details: {traceback.format_exc()}")
+#     return jsonify({'error': 'Internal server error'}), 500
 
 
 if __name__ == '__main__':  
