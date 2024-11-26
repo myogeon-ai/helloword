@@ -7,3 +7,4 @@ numpy
 sounddevice
 werkzeug
 openai
+psycopg2-binary
