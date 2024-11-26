@@ -6,7 +6,6 @@ requests
 numpy
 sounddevice
 werkzeug
-psycopg2
 psycopg2-binary
 sqlalchemy
 flask_sqlalchemy
