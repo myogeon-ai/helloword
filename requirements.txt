@@ -1,10 +1,12 @@
-SpeechRecognition
-gTTS
-googletrans
-sounddevice
-Flask==2.3.3
-Flask-Migrate==4.0.7
-Flask-SQLAlchemy==3.0.5
-psycopg2-binary
-sqlalchemy
+Flask
+SQLAlchemy
+Flask-SQLAlchemy
 
+gTTS
+SpeechRecognition
+googletrans-py
+
+psycopg2
+psycopg2-binary
+openai
+python-dotenv
