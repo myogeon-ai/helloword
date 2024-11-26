@@ -6,7 +6,6 @@ requests
 numpy
 sounddevice
 werkzeug
-openai
+
 psycopg2-binary
 sqlalchemy
-flask_sqlalchemy
