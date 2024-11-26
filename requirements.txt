@@ -6,3 +6,4 @@ requests
 numpy
 sounddevice
 werkzeug
+openai
