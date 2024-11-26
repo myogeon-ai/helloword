@@ -371,7 +371,7 @@
     background-color: white;  
     box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);  
     padding: 1rem;  
-    height: calc(100vh - 200px);  
+    height: calc(100vh - 70px);  
     position: sticky;  
     top: 20px;  
 }  

@@ -32,6 +32,14 @@ import sqlalchemy as sa
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine
 
+
+# import openai
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+
+import logging
+import traceback
 ###########################################
 # python -m pip freeze > requirements.txt
 # pip list --format=freeze > requirements.txt
@@ -40,7 +48,9 @@ from sqlalchemy import create_engine
 
 
 
-
+# 로깅 설정
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)  
 app.secret_key = 'your_secret_key_here'  # 실제 운영 환경에서는 더 복잡한 키를 사용하세요  
@@ -71,6 +81,26 @@ TEMP_DIR.mkdir(exist_ok=True)
 engine = sa.create_engine("postgresql://neondb_owner:Wcid23lFsHTK@ep-blue-lab-a1gjolcg-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require")
 
 
+#### local ######################################
+# API KEY 정보로드
+load_dotenv()
+
+
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# API 키 검증
+if not os.getenv('OPENAI_API_KEY'):
+    logger.error("OpenAI API 키가 설정되지 않았습니다!")
+    raise ValueError("OPENAI_API_KEY must be set in .env file")
+
+
+
+
+
+
+# 대화 기록을 저장할 세션 변수
+conversations = {}
 
 
 users = {}  
@@ -475,6 +505,98 @@ def get_word():
         'word': word,  
         'difficulty': difficulty  
     }) 
+
+
+
+
+
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    try:
+        # 요청 데이터 로깅
+        logger.debug(f"Received request data: {request.json}")
+        
+        # 사용자 메시지와 세션 ID 받기
+        data = request.json
+        user_message = data.get('message', '')
+        session_id = data.get('session_id', 'default')
+
+        # 입력값 검증
+        if not user_message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        # 세션별 대화 기록 초기화
+        if session_id not in conversations:
+            conversations[session_id] = [
+                {"role": "system", "content": "You are a helpful assistant."}
+            ]
+
+        # 현재 대화 기록에 사용자 메시지 추가
+        conversations[session_id].append(
+            {"role": "user", "content": user_message}
+        )
+
+        logger.debug(f"Sending messages to OpenAI: {conversations[session_id]}")
+
+        try:
+            # ChatGPT API 호출
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=conversations[session_id],
+                temperature=0.7,
+                max_tokens=1000
+            )
+
+            # 응답 로깅
+            logger.debug(f"OpenAI API Response: {response}")
+
+            # 챗봇 응답 추출
+            bot_message = response.choices[0].message.content
+
+            # 대화 기록에 챗봇 응답 추가
+            conversations[session_id].append(
+                {"role": "assistant", "content": bot_message}
+            )
+
+            # 대화 기록 길이 제한 (최근 10개 메시지 유지)
+            conversations[session_id] = conversations[session_id][-10:]
+
+            return jsonify({
+                'message': bot_message,
+                'session_id': session_id
+            })
+
+        except Exception as api_error:
+            # OpenAI API 관련 에러 상세 로깅
+            logger.error(f"OpenAI API Error: {str(api_error)}")
+            logger.error(f"Error details: {traceback.format_exc()}")
+            
+            error_message = str(api_error)
+            error_type = type(api_error).__name__
+
+            # 클라이언트에게 보낼 에러 메시지 구성
+            return jsonify({
+                'error': f"API Error ({error_type}): {error_message}",
+                'session_id': session_id
+            }), 500
+
+    except Exception as e:
+        # 일반적인 서버 에러 로깅
+        logger.error(f"Server Error: {str(e)}")
+        logger.error(f"Error details: {traceback.format_exc()}")
+        
+        return jsonify({
+            'error': f"Server Error: {str(e)}",
+            'session_id': session_id
+        }), 500
+
+# # # 에러 핸들러 추가
+# @app.errorhandler(Exception)
+# def handle_error(e):
+#     logger.error(f"Unhandled Error: {str(e)}")
+#     logger.error(f"Error details: {traceback.format_exc()}")
+#     return jsonify({'error': 'Internal server error'}), 500
 
 
 if __name__ == '__main__':  

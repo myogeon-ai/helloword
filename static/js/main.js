@@ -14,6 +14,7 @@ class AppState {
         this.mediaRecorder = null;  
         this.audioChunks = [];  
         this.isInitialized = false;  
+        this.recodingChk = 0;  
     }  
 }  
 
@@ -31,6 +32,8 @@ class WordFriendsApp {
             isRecording: false,
             isLoggedIn: false,  
             currentUser: null,
+            recodingChk: 0,
+            tmp_word:'',
  
         }; 
         // Speech Recognition 초기화  
@@ -42,7 +45,7 @@ class WordFriendsApp {
         // Speech Recognition 이벤트 핸들러 설정  
         this.setupSpeechRecognition();
         this.setupAuthListeners();  
-        this.initialize();  
+        this.initialize();
     }  
 
 
@@ -102,8 +105,8 @@ class WordFriendsApp {
                 body: JSON.stringify({ id, password })  
             });
             
-            const data = await response.json();  
-            if (data.success) {  
+            const data = await response.json(); 
+            if (data.success) {
                 this.state.isLoggedIn = true;  
                 this.state.currentUser = data.user;  
                 
@@ -114,8 +117,8 @@ class WordFriendsApp {
             } else {
                 this.showResultRegistlog('로그인 실패: ' + data.message, false, 'login');  
             }
-        } catch (error) { 
-            console.error('Login error:', error);  
+        } catch (error) {
+            console.error('Login error:', error); 
             this.showResultRegistlog('로그인 중 오류가 발생했습니다.', false, 'login');  
         } finally {  
             this.hideLoading();
@@ -179,6 +182,24 @@ class WordFriendsApp {
         resultContainer.css('animation', isSuccess ? 'popIn 0.5s ease' : 'shake 0.5s ease');  
     }  
 
+    // 결과 표시 메서드 수정  word-card-full-message
+    showResultWordCardFull(message, isSuccess = true, type ){ 
+        
+        const resultContainer = $('#word-card-full-message'); 
+
+        resultContainer.html(message);  
+        resultContainer.removeClass('result-success result-error');  
+        resultContainer.addClass(isSuccess ? 'result-success' : 'result-error');  
+        
+        // 결과 표시 애니메이션  
+        resultContainer.css('animation', 'none');  
+        resultContainer[0].offsetHeight; // reflow  
+        resultContainer.css('animation', isSuccess ? 'popIn 0.5s ease' : 'shake 0.5s ease');  
+        
+        $('#chat-container').show(); 
+    }  
+    
+    
 
     async initialize() {  
         try {  
@@ -237,13 +258,13 @@ class WordFriendsApp {
             this.handleCharacterSelection(character, $button);  
         });  
 
-        // 새 단어 받기 이벤트 (스페이스바)  
-        $(document).on('keydown', (e) => {  
-            if (e.code === 'Space' && !this.state.isRecording) {  
-                e.preventDefault();  
-                this.getNewWord();  
-            }  
-        });  
+        // // 새 단어 받기 이벤트 (스페이스바)  
+        // $(document).on('keydown', (e) => {  
+        //     if (e.code === 'Space' && !this.state.isRecording) {  
+        //         e.preventDefault();  
+        //         this.getNewWord();  
+        //     }  
+        // });  
     }  
 
     async handleTopicSelection(topic, $button) {  
@@ -342,22 +363,40 @@ class WordFriendsApp {
     createOrUpdateWordCard(word) {  
         // 기존 카드 제거  
         $('#word-card').remove();  
-    
+        
+        console.log(this.state.selectedTopic)
+        console.log(word)
+
+        this.tmp_word = word
         const cardHtml = `  
-            <div id="word-card" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 max-w-md mx-auto">  
-                <div class="text-4xl font-bold mb-6 text-purple-600 text-center">${word}</div>  
-                <div class="flex flex-col gap-4">  
-                    <button id="play-btn" class="play-btn group px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
-                        <i class="fas fa-play mr-2"></i>  
-                        <span class="group-hover:tracking-wider transition-all duration-200">Play</span>  
-                    </button>  
-                    <button id="mic-btn" class="mic-btn group px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
-                        <i class="fas fa-microphone mr-2"></i>  
-                        <span class="group-hover:tracking-wider transition-all duration-200">Record</span>  
-                    </button>  
-                </div>  
-                <div id="result-container" class="mt-6 text-center"></div>  
-            </div>`;  
+            <div id="word-card-full" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 mx-auto" style="width:100%; height:400px">
+                    <div id="word-card-full-message" class="text-center mt-2 mb-4 min-h-[24px] transition-all duration-300"></div> 
+                    <div class="card_half" style="width:45%; height:100%; float: left;">
+                        <div id="word-card" >  
+                            <img src="/static/images/${this.state.selectedTopic}/${word}_1-2x.png"   
+                            alt="Boy"   
+                            class="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">      
+                        </div>
+                    </div>
+                    <div class="card_half" style="width:45%; height:100%; float: right;">
+                        <div id="word-card" >  
+                            <div class="text-4xl font-bold mb-6 text-purple-600 text-center">${word}</div>  
+                            <div class="flex flex-col gap-4">  
+                                <button id="play-btn" class="play-btn group px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
+                                    <i class="fas fa-play mr-2"></i>  
+                                    <span class="group-hover:tracking-wider transition-all duration-200">Play</span>  
+                                </button>  
+                                <button id="mic-btn" class="mic-btn group px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center">  
+                                    <i class="fas fa-microphone mr-2"></i>  
+                                    <span class="group-hover:tracking-wider transition-all duration-200">Record</span>  
+                                </button>  
+                            </div>  
+                            <div id="result-container" class="mt-6 text-center"></div>  
+                        </div>
+                    </div>
+
+
+                </div>`;  
     
         // 카드를 컨테이너에 추가  
         $('#word-container').html(cardHtml);  
@@ -435,10 +474,27 @@ class WordFriendsApp {
             setTimeout(() => playBtn.removeClass('scale-95'), 200);  
         });  
 
-        micBtn.on('click', () => {  
-            this.startRecording();  
-            micBtn.addClass('scale-95');  
-            setTimeout(() => micBtn.removeClass('scale-95'), 200);  
+        micBtn.on('click', () => { 
+            
+            console.log('micBtn.on = ', this.state.recodingChk)
+            console.log('totalWords = ', this.state.totalWords)
+            if(this.state.totalWords == 10){
+                this.updateStatistics(); 
+                $('#word-card').remove(); 
+                $('#word-card_full').text('ddfsdfsdfsdfsfsfds');
+                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true);  
+            }else{
+                this.state.recodingChk++;
+                if(this.state.recodingChk > 4){
+                    this.handleSpeechResult("5cntOver");
+                }else{
+                    this.startRecording();  
+                    micBtn.addClass('scale-95');  
+                    setTimeout(() => micBtn.removeClass('scale-95'), 200);  
+                }
+            }
+
+
         });  
     }  
 
@@ -554,11 +610,13 @@ class WordFriendsApp {
     }  
 
     updateScore() {  
+        console.log('updateScore')
         $('#score').text(this.state.score);  
         $('#total-attempts').text(this.state.totalAttempts);  
     }
     // 통계 업데이트 메서드  
     updateStatistics() {  
+
         const accuracy = this.state.totalWords === 0 ? 0 :   
             Math.round((this.state.correctWords / this.state.totalWords) * 100);  
         
@@ -593,6 +651,7 @@ class WordFriendsApp {
     // Speech Recognition 설정  
     setupSpeechRecognition() {  
         this.recognition.onstart = () => {  
+            this.recodingChk++;
             this.state.isRecording = true;  
             $('#mic-btn').addClass('recording');  
             this.showResult('듣고 있습니다...', true);  
@@ -623,75 +682,73 @@ class WordFriendsApp {
         }  
     }  
 
-    // // 음성 인식 결과 처리  
-    // handleSpeechResult(result) {  
-    //     const userAnswer = result.toLowerCase().trim();  
-    //     const isCorrect = this.checkAnswer(userAnswer);  
-        
-    //     if (isCorrect) {  
-    //         this.showResult('정답입니다! 🎉', true);  
-    //         // 잠시 후 새로운 단어 가져오기  
-    //         setTimeout(() => this.getNewWord(), 1500);  
-    //     } else {  
-    //         this.showResult('다시 시도해보세요 😅', false);  
-    //     }  
-    // }  
-
-    // // 정답 체크  
-    // checkAnswer(userAnswer) {  
-    //     const isCorrect = userAnswer === this.state.currentWord.toLowerCase();  
-        
-    //     this.state.totalWords++;  
-    //     if (isCorrect) {  
-    //         this.state.correctWords++;  
-    //         this.state.streak++;  
-    //         this.state.bestStreak = Math.max(this.state.streak, this.state.bestStreak);  
-    //     } else {  
-    //         this.state.streak = 0;  
-    //     }  
-        
-    //     this.updateStatistics();  
-    //     return isCorrect;  
-    // }  
+   
     // 음성 인식 결과 처리  
-    async handleSpeechResult(result) {  
-        const userAnswer = result.toLowerCase().trim();  
-        
-        try {  
-            this.showLoading();  
-            const response = await fetch('/api/check-answer', {  
-                method: 'POST',  
-                headers: {  
-                    'Content-Type': 'application/json',  
-                },  
-                body: JSON.stringify({  
-                    userAnswer: userAnswer,  
-                    currentWord: this.state.currentWord  
-                })  
-            });  
-
-            const data = await response.json();  
-            
-            if (data.isCorrect) {  
-                this.state.correctWords++;  
-                this.state.streak++;  
-                this.state.bestStreak = Math.max(this.state.streak, this.state.bestStreak);  
-                this.showResult('정답입니다! 🎉', true);  
-                setTimeout(() => this.getNewWord(), 1500);  
-            } else {  
-                this.state.streak = 0;  
-                this.showResult(`틀렸습니다. 정확한 발음: ${data.correctPronunciation}`, false);  
-            }  
-
+    async handleSpeechResult(result) {
+        if(result == "5cntOver"){
+            console.log('handleSpeechResult', '5cntOver')
+            this.state.streak = 0;  
+            this.state.recodingChk = 0;
+            this.showResult(`틀렸습니다. 정확한 발음: ` + this.tmp_word, false); 
             this.state.totalWords++;  
-            this.updateStatistics();  
+            if(this.state.totalWords == 10){
+                this.updateStatistics(); 
+                $('#word-card').remove();
+                $('#word-card_full').text('ddfsdfsdfsdfsfsfds'); 
+                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true);  
+            }else{
+                this.updateStatistics();  
+                setTimeout(() => this.getNewWord(), 1500); 
+            } 
+            
+        }else{
+            const userAnswer = result.toLowerCase().trim();  
+            console.log('handleSpeechResult', this.state.recodingChk)
+            try {  
+                this.showLoading();  
+                const response = await fetch('/api/check-answer', {  
+                    method: 'POST',  
+                    headers: {  
+                        'Content-Type': 'application/json',  
+                    },  
+                    body: JSON.stringify({  
+                        userAnswer: userAnswer,  
+                        currentWord: this.state.currentWord  
+                    })  
+                });  
 
-        } catch (error) {  
-            console.error('Error checking answer:', error);  
-            this.showResult('오류가 발생했습니다.', false);  
-        } finally {  
-            this.hideLoading();  
-        }  
+                const data = await response.json();  
+                
+                if (data.isCorrect) {  
+                    this.state.correctWords++;  
+                    this.state.streak++;  
+                    this.state.bestStreak = Math.max(this.state.streak, this.state.bestStreak);  
+                    this.showResult('정답입니다! 🎉', true);  
+                    setTimeout(() => this.getNewWord(), 1500);  
+                } else {  
+                    this.state.streak = 0;  
+                    this.showResult(`틀렸습니다. 정확한 발음: ${data.correctPronunciation}`, false);  
+                }  
+
+                this.state.totalWords++; 
+                if(this.state.totalWords == 10){
+                    this.updateStatistics(); 
+                    $('#word-card').remove();
+                    this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true); 
+                   
+                }else{
+                    this.updateStatistics();  
+                } 
+                
+
+            } catch (error) {  
+                console.error('Error checking answer:', error);  
+                this.showResult('오류가 발생했습니다.', false);  
+            } finally {  
+                this.hideLoading();  
+            }  
+        }
+        
     }  
 
     // checkAnswer 메서드는 제거 (백엔드로 이동)
