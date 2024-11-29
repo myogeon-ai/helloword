@@ -4,6 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+flask = "*"
+sqlalchemy = "*"
+flask-sqlalchemy = "*"
+gtts = "*"
+speechrecognition = "*"
+googletrans-py = "*"
+psycopg2-binary = "==2.9.10"
+openai = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
