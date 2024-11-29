@@ -293,7 +293,7 @@ def set_character():
         data = request.get_json()  
         character = data.get('character', '')   # 카테고리, 캐릭터 디폴트
         
-        if character not in ['Boy', 'Girl']:  
+        if character not in ['Kevin', 'Sue']:  
             return jsonify({'success': False, 'error': 'Invalid character'}), 400  
             
         session['selected_character'] = character  
@@ -516,20 +516,38 @@ def chat():
     try:
         # 요청 데이터 로깅
         logger.debug(f"Received request data: {request.json}")
-        
+
         # 사용자 메시지와 세션 ID 받기
         data = request.json
         user_message = data.get('message', '')
         session_id = data.get('session_id', 'default')
 
+
         # 입력값 검증
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
 
+
+        system_role = '''
+        You are a helpful assistant.
+        '''
+        # system_role = '''
+        # Let's talk! I am 5 years old and you are too. Let's talk about each of the following 10 words: apple, banana, kiwi, apricot, grapes, strawberry, blueberry, watermelon, pear. So there should be at least 10 conversations. Your role is to make me use each word. When I say the target word, move on to the next conversation. When I say the last of the 10 words, naturally end the conversation. You start.
+        # '''
+        # system_role = '''
+        #
+        # '''
+        if user_message == 'first_input':
+            user_message = '''
+            Let's talk! I am 5 years old and you are too. Let's talk about each of the following 10 words: apple, banana, kiwi, apricot, grapes, strawberry, blueberry, watermelon, pear. So there should be at least 10 conversations. Your role is to make me use each word. When I say the target word, move on to the next conversation. You must not say the word. Give me up to 2 try and if I don't say the word in 2 try, mention the word and move on to the next conversation. When the last conversation ends, naturally end the conversation. You start.
+
+            '''
+
+
         # 세션별 대화 기록 초기화
         if session_id not in conversations:
             conversations[session_id] = [
-                {"role": "system", "content": "You are a helpful assistant."}
+                {"role": "system", "content": system_role}
             ]
 
         # 현재 대화 기록에 사용자 메시지 추가
@@ -538,11 +556,11 @@ def chat():
         )
 
         logger.debug(f"Sending messages to OpenAI: {conversations[session_id]}")
-
+        
         try:
             # ChatGPT API 호출
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=conversations[session_id],
                 temperature=0.7,
                 max_tokens=1000

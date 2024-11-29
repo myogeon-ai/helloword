@@ -49,18 +49,18 @@
                     <h4 class="text-2xl font-semibold text-gray-700 mb-6">AI 친구를 선택하세요</h4>  
                     <div class="grid grid-cols-2 gap-4 max-w-xl mx-auto">   
                         <div class="character-item">  
-                            <button class="character-btn w-full text-center mb-2 px-4 py-2 rounded-lg transition-colors duration-200 hover:bg-blue-100" data-gender="Boy">Boy</button>  
+                            <button class="character-btn w-full text-center mb-2 px-4 py-2 rounded-lg transition-colors duration-200 hover:bg-blue-100" data-gender="Kevin">Kevin</button>  
                             <div class="character-image-container cursor-pointer">  
                                 <img src="{{ url_for('static', filename='images/boy_1-2x.png') }}"   
-                                    alt="Boy"   
+                                    alt="Kevin"   
                                     class="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">  
                             </div>  
                         </div>  
                         <div class="character-item">  
-                            <button class="character-btn w-full text-center mb-2 px-4 py-2 rounded-lg transition-colors duration-200 hover:bg-blue-100" data-gender="Girl">Girl</button>  
+                            <button class="character-btn w-full text-center mb-2 px-4 py-2 rounded-lg transition-colors duration-200 hover:bg-blue-100" data-gender="Sue">Sue</button>  
                             <div class="character-image-container cursor-pointer">  
                                 <img src="{{ url_for('static', filename='images/girl_1-2x.png') }}"   
-                                    alt="Girl"   
+                                    alt="Sue"   
                                     class="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">  
                             </div>  
                         </div>  
@@ -144,12 +144,61 @@
 
                 <!-- 구분선 -->  
                 <hr class="my-12 border-gray-200">  
-                
-                <div id="chat-container" style="display:none" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 mx-auto" style="width:100%; height:400px">
+  
 
-                    <div class="input-container">
-                        <input type="text" id="user-input" placeholder="메시지를 입력하세요">
-                        <button id="send-btn">전송</button>
+                <!-- 쳇봇 섹션 -->  
+                <div id="chat-section" style="display:block" class="learning-section text-center mb-6">  
+                    <h6 class="text-lg text-gray-600 mb-2">대화를 시작해봐요</h6>  
+                    <h2 class="text-3xl font-bold text-purple-500 mb-6">Let's Start Talking</h2>  
+                    <h6 class="text-lg text-gray-600 mb-1">Start 버튼을 눌러 대화를 시작하세요</h6>  
+                </div>  
+
+                <div style="text-align: center;">
+                <style>
+                    
+                    #chat_btn {
+                                height: 100px;
+                                width: 100px;
+                                border-radius: 50%;
+                                background-color: #9332ea;
+                            }
+
+                        
+                </style>
+                <button id="chat_btn" value="first_input"> Click here </button>
+            </div>
+
+                <div id="chat-container_outer" style="display:block" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 mx-auto" style="width:100%; height:400px">
+
+                    <div class="input-container" style="margin-bottom:35px">
+ 
+
+
+                        <input type="text" style = "width:80%; float: left;"  id="user-input" placeholder="메시지를 입력하세요" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500" required>   
+                        <button id="send-btn" style = "margin-left:10px; width:18%; float: right;" class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">전송</button>  
+                        <!-- <input type="text" id="user-input" placeholder="메시지를 입력하세요">
+                        <button id="send-btn">전송</button> -->
+
+
+                        <!-- <input type="text" style = "width:80%; float: left;"  id="user-input" placeholder="메시지를 입력하세요">
+                        <button id="send-btn" style = "width:20%; float: right;">전송</button> -->
+
+                        <input type="hidden" id="user_nick" value=""> 
+                        <input type="hidden" id="char_nick" value=""> 
+                    </div>
+
+                    <style>
+                        #chat-container{
+                            width:100%;
+                            height:600px;
+                        }
+                        .div_left_Class{
+                            float:left;
+                        }
+                    </style>
+
+                    <div id="chat-container" >
+
                     </div>
                 </div>
 
@@ -189,20 +238,23 @@
                     <div id="selected-topic" class="mb-3 text-gray-700">주제를 선택해주세요</div>  
                     <div id="selected-gender" class="mb-6 text-gray-700">캐릭터를 선택해주세요</div>  
                     
-                    <h3 class="text-xl font-bold mb-4">학습 현황</h3>  
+                    <!-- <h3 class="text-xl font-bold mb-4">학습 현황</h3>   -->
                     <!-- <div id="score-display" class="text-lg text-gray-700">  
                         정확도: <span id="score">0</span>/<span id="total-attempts">0</span>  
                     </div> -->
+
+                    
                     <!-- 점수 표시 섹션 위나 아래에 배치 -->  
-                    <div id="score-section" class="mb-4">  
+                    <!-- <div id="score-section" class="mb-4">   -->
                         <!-- 기존 점수 표시 -->  
-                        <div>Score: <span id="score">0</span> / <span id="total-attempts">0</span></div>  
+                        <!-- <div>Score: <span id="score">0</span> / <span id="total-attempts">0</span></div>   -->
                         
                         <!-- 프로그레스 바 추가 -->  
-                        <div id="progress-bar" class="w-full bg-gray-200 rounded-full h-2.5 mb-6">  
+                        <!-- <div id="progress-bar" class="w-full bg-gray-200 rounded-full h-2.5 mb-6">  
                             <div class="progress-fill bg-purple-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>  
                         </div>  
-                    </div>  
+                    </div>  -->
+
                 </div>  
 
                 <!-- 학습 통계 대시보드 -->  
@@ -210,7 +262,7 @@
                     <h2 class="text-2xl font-bold mb-4 text-purple-600">학습 통계</h2>  
                     <div class="grid grid-cols-2 gap-4">  
                         <div class="stat-card p-4 bg-blue-50 rounded-lg">  
-                            <div class="text-sm text-blue-600">정확도</div>  
+                            <div class="text-sm text-blue-600">정답률</div>  
                             <div id="accuracy" class="text-2xl font-bold text-blue-700">0%</div>  
                         </div>  
                         <div class="stat-card p-4 bg-green-50 rounded-lg">  
@@ -218,11 +270,11 @@
                             <div id="total-words" class="text-2xl font-bold text-green-700">0</div>  
                         </div>  
                         <div class="stat-card p-4 bg-purple-50 rounded-lg">  
-                            <div class="text-sm text-purple-600">현재 스트릭</div>  
+                            <div class="text-sm text-purple-600">연속정답</div>  
                             <div id="current-streak" class="text-2xl font-bold text-purple-700">0</div>  
                         </div>  
                         <div class="stat-card p-4 bg-yellow-50 rounded-lg">  
-                            <div class="text-sm text-yellow-600">최고 스트릭</div>  
+                            <div class="text-sm text-yellow-600">최고 연속정답</div>  
                             <div id="best-streak" class="text-2xl font-bold text-yellow-700">0</div>  
                         </div>  
                     </div>  
@@ -303,7 +355,8 @@
         
     </div>  
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
 </body>  
 </html>

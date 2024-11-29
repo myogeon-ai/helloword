@@ -34,7 +34,12 @@ class WordFriendsApp {
             currentUser: null,
             recodingChk: 0,
             tmp_word:'',
- 
+            user_nickname:'',
+            character:'',
+            correct:'',
+            incorrect:'',
+            character:'',
+
         }; 
         // Speech Recognition 초기화  
         this.recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();  
@@ -111,6 +116,8 @@ class WordFriendsApp {
                 this.state.currentUser = data.user;  
                 
                 this.showResultRegistlog(data.user.nickname + '님 반갑습니다.!', true, 'login');
+                this.state.user_nickname = data.user.nickname
+                $('#user_nick').val(data.user.nickname);
                 $('#auth-modal').addClass('hidden');  
                 this.updateLoginButton(data.user.nickname);  
                 this.showResultRegistlog('로그인 성공!', true, 'login');  
@@ -159,7 +166,7 @@ class WordFriendsApp {
         if (this.state.isLoggedIn) {  
             // $('#login-btn').text(this.state.currentUser.nickname);  
             $('#login-btn').text('로그아웃');  
-            $('#login_nickname').text(nickname + '님 반갑습니다.');
+            $('#login_nickname').text(nickname + '님 반가워요~.');
         } else {  
             $('#login-btn').text('로그인');  
         }  
@@ -196,7 +203,10 @@ class WordFriendsApp {
         resultContainer[0].offsetHeight; // reflow  
         resultContainer.css('animation', isSuccess ? 'popIn 0.5s ease' : 'shake 0.5s ease');  
         
-        $('#chat-container').show(); 
+        $('#chat-container').show();
+        $('#chat-section').show();
+        // $('#chat-container').css('display', 'block'); 
+        // $('#chat-section').css('display', 'block'); 
     }  
     
     
@@ -349,7 +359,8 @@ class WordFriendsApp {
         $('#selected-topic').text(`선택된 주제: ${topic}`);  
     }  
 
-    updateSelectedCharacter(character) {  
+    updateSelectedCharacter(character) {
+        $('#char_nick').val(character);
         $('#selected-gender').text(`선택된 캐릭터: ${character}`);  
     }  
 
@@ -362,19 +373,20 @@ class WordFriendsApp {
 
     createOrUpdateWordCard(word) {  
         // 기존 카드 제거  
-        $('#word-card').remove();  
+        $('#word-card-img').remove();  
+        $('#word-card').remove();
         
         console.log(this.state.selectedTopic)
         console.log(word)
 
         this.tmp_word = word
         const cardHtml = `  
-            <div id="word-card-full" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 mx-auto" style="width:100%; height:400px">
+            <div id="word-card-full" class="word-card bg-white rounded-lg shadow-lg p-8 transform transition-all duration-300 hover:scale-105 mx-auto" style="width:100%; height:500px">
                     <div id="word-card-full-message" class="text-center mt-2 mb-4 min-h-[24px] transition-all duration-300"></div> 
                     <div class="card_half" style="width:45%; height:100%; float: left;">
-                        <div id="word-card" >  
+                        <div id="word-card-img" >  
                             <img src="/static/images/${this.state.selectedTopic}/${word}_1-2x.png"   
-                            alt="Boy"   
+                            alt="Kevin"   
                             class="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200">      
                         </div>
                     </div>
@@ -480,12 +492,13 @@ class WordFriendsApp {
             console.log('totalWords = ', this.state.totalWords)
             if(this.state.totalWords == 10){
                 this.updateStatistics(); 
+                $('#word-card-img').remove();
                 $('#word-card').remove(); 
-                $('#word-card_full').text('ddfsdfsdfsdfsfsfds');
-                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true);  
+                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true);
+                $('#learning-section').css('display', 'block'); 
             }else{
                 this.state.recodingChk++;
-                if(this.state.recodingChk > 4){
+                if(this.state.recodingChk > 1){
                     this.handleSpeechResult("5cntOver");
                 }else{
                     this.startRecording();  
@@ -610,7 +623,6 @@ class WordFriendsApp {
     }  
 
     updateScore() {  
-        console.log('updateScore')
         $('#score').text(this.state.score);  
         $('#total-attempts').text(this.state.totalAttempts);  
     }
@@ -692,10 +704,11 @@ class WordFriendsApp {
             this.showResult(`틀렸습니다. 정확한 발음: ` + this.tmp_word, false); 
             this.state.totalWords++;  
             if(this.state.totalWords == 10){
-                this.updateStatistics(); 
+                this.updateStatistics();
+                $('#word-card-img').remove();
                 $('#word-card').remove();
-                $('#word-card_full').text('ddfsdfsdfsdfsfsfds'); 
-                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true);  
+                this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true); 
+                $('#learning-section').css('display', 'block');
             }else{
                 this.updateStatistics();  
                 setTimeout(() => this.getNewWord(), 1500); 
@@ -724,7 +737,8 @@ class WordFriendsApp {
                     this.state.streak++;  
                     this.state.bestStreak = Math.max(this.state.streak, this.state.bestStreak);  
                     this.showResult('정답입니다! 🎉', true);  
-                    setTimeout(() => this.getNewWord(), 1500);  
+                    setTimeout(() => this.getNewWord(), 1500);
+
                 } else {  
                     this.state.streak = 0;  
                     this.showResult(`틀렸습니다. 정확한 발음: ${data.correctPronunciation}`, false);  
@@ -733,9 +747,10 @@ class WordFriendsApp {
                 this.state.totalWords++; 
                 if(this.state.totalWords == 10){
                     this.updateStatistics(); 
+                    $('#word-card-img').remove();
                     $('#word-card').remove();
                     this.showResultWordCardFull('듣기 말하기가 종료되었습니다.! 🎉', true); 
-                   
+                    $('#learning-section').css('display', 'block');
                 }else{
                     this.updateStatistics();  
                 } 
